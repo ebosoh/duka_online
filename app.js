@@ -19,11 +19,11 @@ const firebaseConfig = {
 };
 
 // Registered Merchants (Dynamic Live Show Channels)
-const ACTIVE_SELLERS = [
-  { id: "seller-1", name: "Grogan Spares Zone", PochiPhone: "0722987654", shortName: "Grogan", avatar: "🛠️", initItem: "Heavy-Duty Brake Pads (Pair)", initPrice: 3200 },
-  { id: "seller-2", name: "Amina Omondi Fashion", PochiPhone: "0722111111", shortName: "Amina", avatar: "👗", initItem: "Vintage Denim Jacket", initPrice: 1800 },
-  { id: "seller-3", name: "Velo Nicotine Shop", PochiPhone: "0711555555", shortName: "Velo", avatar: "🚬", initItem: "Velo Nicotine Pouches 2-Pack", initPrice: 1200 },
-  { id: "seller-4", name: "TechBrain Gadgets Hub", PochiPhone: "0799000000", shortName: "Gadgets", avatar: "💻", initItem: "Wireless ANC Earbuds Pro", initPrice: 4500 }
+let ACTIVE_SELLERS = [
+  { id: "seller-1", name: "Grogan Spares Zone", PochiPhone: "0722987654", shortName: "Grogan", avatar: "🛠️", initItem: "Heavy-Duty Brake Pads (Pair)", initPrice: 3200, pin: "1234" },
+  { id: "seller-2", name: "Amina Omondi Fashion", PochiPhone: "0722111111", shortName: "Amina", avatar: "👗", initItem: "Vintage Denim Jacket", initPrice: 1800, pin: "1234" },
+  { id: "seller-3", name: "Velo Nicotine Shop", PochiPhone: "0711555555", shortName: "Velo", avatar: "🚬", initItem: "Velo Nicotine Pouches 2-Pack", initPrice: 1200, pin: "1234" },
+  { id: "seller-4", name: "TechBrain Gadgets Hub", PochiPhone: "0799000000", shortName: "Gadgets", avatar: "💻", initItem: "Wireless ANC Earbuds Pro", initPrice: 4500, pin: "1234" }
 ];
 
 // Global State Variables
@@ -113,6 +113,7 @@ function initFirebase() {
 
 // Load seed data or subscribe to Firestore live sync
 function loadData() {
+  loadSellersAndHubs();
   if (db) {
     if (firestoreUnsubscribe) firestoreUnsubscribe();
     
@@ -462,6 +463,7 @@ function handleSellerChannelChange() {
 }
 
 function renderSellerDashboard() {
+  if (!checkSellerAuth()) return;
   const merchantTxns = transactions.filter((t) => t.merchantPhone === activeSellerChannel);
 
   let totalProductSales = 0;
@@ -720,12 +722,17 @@ function simulateLiveBuyerPurchase() {
 // COURIER PORTAL
 // ==========================================================================
 function renderCourierDashboard() {
+  if (!checkCourierAuth()) return;
   const tableBody = document.getElementById("courier-txn-table-body");
   if (!tableBody) return;
 
   tableBody.innerHTML = "";
 
-  const courierTxns = transactions.filter((t) => t.matched);
+  const authCourierStr = localStorage.getItem("duka_auth_courier");
+  if (!authCourierStr) return;
+
+  const courier = JSON.parse(authCourierStr);
+  const courierTxns = transactions.filter((t) => t.matched && t.collectionPoint === courier.name);
 
   if (courierTxns.length === 0) {
     tableBody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--text-dark-secondary);">No packages waiting for dispatch. Matched transactions appear here.</td></tr>`;
@@ -881,6 +888,321 @@ function showToast(message, type = "success") {
     toast.style.transform = "translateX(50px)";
     setTimeout(() => toast.remove(), 300);
   }, 4500);
+}
+
+// ==========================================================================
+// DYNAMIC DUKA ONLINE REGISTRIES (LocalStorage & Asynchronous Firestore Sync)
+// ==========================================================================
+function loadSellersAndHubs() {
+  // 1. Load from LocalStorage fallback first (instant offline render)
+  const storedSellers = localStorage.getItem("duka_sellers");
+  if (storedSellers) {
+    ACTIVE_SELLERS = JSON.parse(storedSellers);
+  }
+  const storedHubs = localStorage.getItem("duka_hubs");
+  if (storedHubs) {
+    COLLECTION_POINTS = JSON.parse(storedHubs);
+  }
+
+  // 2. Fetch from Firestore if connected (syncs online updates in background!)
+  if (db) {
+    db.collection("sellers").get().then((snapshot) => {
+      if (!snapshot.empty) {
+        let cloudSellers = [];
+        snapshot.forEach(doc => cloudSellers.push(doc.data()));
+        
+        // Merge cloud sellers with local (ensuring no duplicates by Pochi Phone)
+        cloudSellers.forEach(cs => {
+          if (!ACTIVE_SELLERS.some(s => s.PochiPhone === cs.PochiPhone)) {
+            ACTIVE_SELLERS.push(cs);
+          }
+        });
+        localStorage.setItem("duka_sellers", JSON.stringify(ACTIVE_SELLERS));
+        populateDropdowns(); // Re-populate UI dropdowns
+      }
+    }).catch(err => console.log("Sellers fetch failed or offline:", err));
+
+    db.collection("hubs").get().then((snapshot) => {
+      if (!snapshot.empty) {
+        let cloudHubs = [];
+        snapshot.forEach(doc => cloudHubs.push(doc.data()));
+        
+        // Merge cloud hubs with local (ensuring no duplicates by ID)
+        cloudHubs.forEach(ch => {
+          if (!COLLECTION_POINTS.some(h => h.id === ch.id || h.PochiPhone === ch.PochiPhone)) {
+            COLLECTION_POINTS.push(ch);
+          }
+        });
+        localStorage.setItem("duka_hubs", JSON.stringify(COLLECTION_POINTS));
+        populateDropdowns(); // Re-populate UI dropdowns
+      }
+    }).catch(err => console.log("Hubs fetch failed or offline:", err));
+  }
+}
+
+// ==========================================================================
+// DYNAMIC SIGN-UP REGISTRATIONS (Mobile-First Bottom-Sheets)
+// ==========================================================================
+function openSellerSignupModal() {
+  const modal = document.getElementById("seller-signup-modal");
+  if (modal) modal.classList.add("active");
+}
+
+function closeSellerSignupModal() {
+  const modal = document.getElementById("seller-signup-modal");
+  if (modal) modal.classList.remove("active");
+  document.getElementById("seller-signup-form").reset();
+}
+
+// Register a New Seller
+function registerNewSeller(event) {
+  event.preventDefault();
+
+  const name = document.getElementById("reg-seller-name").value.trim();
+  const shortName = document.getElementById("reg-seller-short").value.trim();
+  const PochiPhone = document.getElementById("reg-seller-pochi").value.trim();
+  const initItem = document.getElementById("reg-seller-item").value.trim();
+  const initPrice = parseFloat(document.getElementById("reg-seller-price").value) || 0;
+  const avatar = document.getElementById("reg-seller-avatar").value;
+  const pin = document.getElementById("reg-seller-pin").value.trim();
+
+  if (!name || !shortName || !PochiPhone || !initItem || initPrice <= 0 || !pin) {
+    showToast("Please fill in all registration fields!", "error");
+    return;
+  }
+
+  if (!/^\d{4}$/.test(pin)) {
+    showToast("Passcode must be a 4-digit numeric PIN!", "error");
+    return;
+  }
+
+  // Check if Seller already exists by phone
+  if (ACTIVE_SELLERS.some(s => s.PochiPhone === PochiPhone)) {
+    showToast("A seller with this Pochi phone is already registered!", "error");
+    return;
+  }
+
+  const newSeller = {
+    id: `seller-${Date.now()}`,
+    name: name,
+    PochiPhone: PochiPhone,
+    shortName: shortName,
+    avatar: avatar,
+    initItem: initItem,
+    initPrice: initPrice,
+    pin: pin
+  };
+
+  // Add locally instantly
+  ACTIVE_SELLERS.push(newSeller);
+  localStorage.setItem("duka_sellers", JSON.stringify(ACTIVE_SELLERS));
+
+  // Sync in background with Firestore
+  if (db) {
+    db.collection("sellers").add(newSeller)
+      .then(() => console.log("[Firebase] New merchant sync done:", name))
+      .catch((err) => console.error("[Firebase] New merchant sync failed (offline queue active):", err));
+  }
+
+  // Update UI and clean up
+  populateDropdowns();
+  closeSellerSignupModal();
+  showToast(`Shop "${name}" successfully registered!`, "success");
+  
+  // Auto login newly registered seller session
+  localStorage.setItem("duka_auth_seller", JSON.stringify(newSeller));
+  checkSellerAuth();
+  
+  // Auto-switch selector to the newly registered seller on the seller dashboard
+  const channelSelector = document.getElementById("seller-channel-selector");
+  if (channelSelector) {
+    channelSelector.value = PochiPhone;
+    handleSellerChannelChange();
+  }
+}
+
+function openCourierSignupModal() {
+  const modal = document.getElementById("courier-signup-modal");
+  if (modal) modal.classList.add("active");
+}
+
+function closeCourierSignupModal() {
+  const modal = document.getElementById("courier-signup-modal");
+  if (modal) modal.classList.remove("active");
+  document.getElementById("courier-signup-form").reset();
+}
+
+// Register a New Courier Depot
+function registerNewCourier(event) {
+  event.preventDefault();
+
+  const name = document.getElementById("reg-courier-name").value.trim();
+  const PochiPhone = document.getElementById("reg-courier-pochi").value.trim();
+  const pin = document.getElementById("reg-courier-pin").value.trim();
+  const fee = parseFloat(document.getElementById("reg-courier-fee").value) || 0;
+
+  if (!name || !PochiPhone || fee <= 0 || !pin) {
+    showToast("Please fill in all hub details!", "error");
+    return;
+  }
+
+  if (!/^\d{4}$/.test(pin)) {
+    showToast("Passcode must be a 4-digit numeric PIN!", "error");
+    return;
+  }
+
+  // Check if Hub already exists
+  if (COLLECTION_POINTS.some(h => h.PochiPhone === PochiPhone)) {
+    showToast("A courier depot with this phone number already exists!", "error");
+    return;
+  }
+
+  const newHub = {
+    id: `hub-${Date.now()}`,
+    name: name,
+    fee: fee,
+    PochiPhone: PochiPhone,
+    pin: pin
+  };
+
+  // Add locally instantly
+  COLLECTION_POINTS.push(newHub);
+  localStorage.setItem("duka_hubs", JSON.stringify(COLLECTION_POINTS));
+
+  // Sync in background with Firestore
+  if (db) {
+    db.collection("hubs").add(newHub)
+      .then(() => console.log("[Firebase] New depot sync done:", name))
+      .catch((err) => console.error("[Firebase] New depot sync failed (offline queue active):", err));
+  }
+
+  // Update UI and clean up
+  populateDropdowns();
+  closeCourierSignupModal();
+  showToast(`Courier Depot "${name}" registered successfully!`, "courier");
+
+  // Auto login newly registered courier depot session
+  localStorage.setItem("duka_auth_courier", JSON.stringify(newHub));
+  checkCourierAuth();
+}
+
+// ==========================================================================
+// SELLER & COURIER PORTAL AUTHENTICATION GATES
+// ==========================================================================
+
+// Verify Seller Authentication
+function checkSellerAuth() {
+  const authSellerStr = localStorage.getItem("duka_auth_seller");
+  const authGate = document.getElementById("seller-auth-gate");
+  const dashContent = document.getElementById("seller-dashboard-content");
+
+  if (authSellerStr) {
+    try {
+      const seller = JSON.parse(authSellerStr);
+      // Verify credentials against ACTIVE_SELLERS
+      const verified = ACTIVE_SELLERS.find(s => s.PochiPhone === seller.PochiPhone && s.pin === seller.pin);
+      if (verified) {
+        if (authGate) authGate.style.display = "none";
+        if (dashContent) dashContent.style.display = "block";
+        activeSellerChannel = seller.PochiPhone;
+
+        const sellerChannelSelector = document.getElementById("seller-channel-selector");
+        if (sellerChannelSelector) {
+          sellerChannelSelector.value = activeSellerChannel;
+          sellerChannelSelector.disabled = true;
+        }
+        return true;
+      }
+    } catch (e) {
+      console.error("Error parsing seller auth:", e);
+    }
+  }
+
+  if (authGate) authGate.style.display = "flex";
+  if (dashContent) dashContent.style.display = "none";
+  return false;
+}
+
+// Handle Seller Log In Form Submission
+function handleSellerLogin(event) {
+  event.preventDefault();
+  const phone = document.getElementById("login-seller-phone").value.trim();
+  const pin = document.getElementById("login-seller-pin").value.trim();
+
+  const seller = ACTIVE_SELLERS.find(s => s.PochiPhone === phone && s.pin === pin);
+  if (seller) {
+    localStorage.setItem("duka_auth_seller", JSON.stringify(seller));
+    showToast(`Welcome back, ${seller.name}!`, "success");
+
+    // Clear login inputs
+    document.getElementById("login-seller-phone").value = "";
+    document.getElementById("login-seller-pin").value = "";
+
+    checkSellerAuth();
+  } else {
+    showToast("Invalid Pochi phone number or PIN!", "error");
+  }
+}
+
+// Handle Seller Log Out
+function handleSellerLogout() {
+  localStorage.removeItem("duka_auth_seller");
+  showToast("Logged out of Merchant Control Panel", "success");
+  checkSellerAuth();
+}
+
+// Verify Courier Authentication
+function checkCourierAuth() {
+  const authCourierStr = localStorage.getItem("duka_auth_courier");
+  const authGate = document.getElementById("courier-auth-gate");
+  const dashContent = document.getElementById("courier-dashboard-content");
+
+  if (authCourierStr) {
+    try {
+      const courier = JSON.parse(authCourierStr);
+      // Verify credentials against COLLECTION_POINTS
+      const verified = COLLECTION_POINTS.find(h => h.PochiPhone === courier.PochiPhone && h.pin === courier.pin);
+      if (verified) {
+        if (authGate) authGate.style.display = "none";
+        if (dashContent) dashContent.style.display = "block";
+        return true;
+      }
+    } catch (e) {
+      console.error("Error parsing courier auth:", e);
+    }
+  }
+
+  if (authGate) authGate.style.display = "flex";
+  if (dashContent) dashContent.style.display = "none";
+  return false;
+}
+
+// Handle Courier Log In Form Submission
+function handleCourierLogin(event) {
+  event.preventDefault();
+  const phone = document.getElementById("login-courier-phone").value.trim();
+  const pin = document.getElementById("login-courier-pin").value.trim();
+
+  const hub = COLLECTION_POINTS.find(h => h.PochiPhone === phone && h.pin === pin);
+  if (hub) {
+    localStorage.setItem("duka_auth_courier", JSON.stringify(hub));
+    showToast(`Courier Depot "${hub.name}" unlocked!`, "courier");
+
+    // Clear login inputs
+    document.getElementById("login-courier-phone").value = "";
+    document.getElementById("login-courier-pin").value = "";
+
+    checkCourierAuth();
+  } else {
+    showToast("Invalid Depot Pochi phone number or PIN!", "error");
+  }
+}
+
+// Handle Courier Log Out
+function handleCourierLogout() {
+  localStorage.removeItem("duka_auth_courier");
+  showToast("Logged out of Courier Portal", "courier");
+  checkCourierAuth();
 }
 
 // ==========================================================================

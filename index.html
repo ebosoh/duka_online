@@ -315,14 +315,43 @@
       <!-- ========================================== -->
       <section id="seller-view" class="view-panel">
         <div class="dashboard-container">
-          
-          <!-- Live sound alert banner -->
-          <div class="fomo-payout-banner" id="payout-banner">
-            <div class="fomo-payout-text">
-              🔔 <span id="payout-banner-text">QRE58KJS6F Matched! KES 3,200 product sale secured.</span>
+
+          <!-- Seller Auth Gate (Lockscreen) -->
+          <div id="seller-auth-gate" class="auth-gate-panel">
+            <div class="auth-card">
+              <div class="auth-header">
+                <div class="auth-logo-circle">🔑</div>
+                <h2 style="font-family: Outfit; font-weight: 800; font-size: 1.5rem; color: #FFF; margin-top: 10px;">Merchant Sign In</h2>
+                <p style="color: var(--text-dark-secondary); font-size: 0.8rem; line-height: 1.4; margin-top: 5px;">Access is restricted to authorized sellers. Enter your registered Pochi phone number & PIN below.</p>
+              </div>
+              <form onsubmit="handleSellerLogin(event)" style="display:flex; flex-direction:column; gap: 15px; padding: 20px;">
+                <div class="form-group">
+                  <label style="color:#FFF; display:block; font-size:0.85rem; margin-bottom:5px; font-weight:600;">Registered Pochi Phone Number</label>
+                  <input type="tel" id="login-seller-phone" class="form-input" style="background:rgba(0,0,0,0.3); color:#FFF; border-color:var(--border-dark);" placeholder="e.g. 0722987654" required>
+                </div>
+                <div class="form-group">
+                  <label style="color:#FFF; display:block; font-size:0.85rem; margin-bottom:5px; font-weight:600;">4-Digit Account PIN</label>
+                  <input type="password" id="login-seller-pin" class="form-input" style="background:rgba(0,0,0,0.3); color:#FFF; border-color:var(--border-dark); text-align:center; letter-spacing:8px;" placeholder="••••" maxlength="4" required>
+                </div>
+                <button type="submit" class="cta-button" style="background:var(--primary-green); font-size: 1rem; padding: 12px;">
+                  🔓 Access Control Panel
+                </button>
+                <p style="font-size:0.8rem; text-align:center; color:var(--text-dark-secondary); margin-top: 5px;">
+                  New merchant? <a href="#" onclick="openSellerSignupModal(); return false;" style="color:var(--primary-green); font-weight:600; text-decoration:none;">Register Shop Account</a>
+                </p>
+              </form>
             </div>
-            <button style="background:transparent; border:none; color:white; font-weight:700; cursor:pointer;" onclick="document.getElementById('payout-banner').classList.remove('active')">&times;</button>
           </div>
+
+          <div id="seller-dashboard-content" style="display:none;">
+            
+            <!-- Live sound alert banner -->
+            <div class="fomo-payout-banner" id="payout-banner">
+              <div class="fomo-payout-text">
+                🔔 <span id="payout-banner-text">QRE58KJS6F Matched! KES 3,200 product sale secured.</span>
+              </div>
+              <button style="background:transparent; border:none; color:white; font-weight:700; cursor:pointer;" onclick="document.getElementById('payout-banner').classList.remove('active')">&times;</button>
+            </div>
 
           <div class="dash-header">
             <div>
@@ -332,6 +361,7 @@
                   <!-- Populate dynamically -->
                 </select>
                 <button class="tool-btn" style="background:var(--primary-green); border-color:var(--primary-green); color:white; padding: 6px 12px; font-size: 0.9rem;" onclick="openSellerSignupModal()">➕ Register Shop</button>
+                <button class="tool-btn" style="background:transparent; border-color:var(--accent-red); color:var(--accent-red); padding: 6px 12px; font-size: 0.9rem;" onclick="handleSellerLogout()">🔓 Log Out</button>
               </div>
               <p style="color: var(--text-dark-secondary);">Real-time M-PESA message matching, platform split tracker, and courier manifest management.</p>
             </div>
@@ -448,6 +478,7 @@
 
           </div>
 
+          </div>
         </div>
       </section>
 
@@ -456,17 +487,47 @@
       <!-- ========================================== -->
       <section id="courier-view" class="view-panel">
         <div class="dashboard-container">
-          
-          <div class="dash-header">
-            <div>
-              <div style="display:flex; align-items:center; gap: 15px; flex-wrap:wrap; margin-bottom: 0.5rem;">
-                <h1 style="font-size: 2rem;">Courier Logistics Hub</h1>
-                <button class="tool-btn" style="background:var(--secondary-orange); border-color:var(--secondary-orange); color:white; padding: 6px 12px; font-size: 0.9rem;" onclick="openCourierSignupModal()">➕ Register Depot</button>
+
+          <!-- Courier Auth Gate (Lockscreen) -->
+          <div id="courier-auth-gate" class="auth-gate-panel">
+            <div class="auth-card">
+              <div class="auth-header">
+                <div class="auth-logo-circle">🔑</div>
+                <h2 style="font-family: Outfit; font-weight: 800; font-size: 1.5rem; color: #FFF; margin-top: 10px;">Courier Sign In</h2>
+                <p style="color: var(--text-dark-secondary); font-size: 0.8rem; line-height: 1.4; margin-top: 5px;">Access is restricted to authorized couriers. Enter your registered Depot Pochi number & PIN below.</p>
               </div>
-              <p style="color: var(--text-dark-secondary);">Matches buyer shipping instructions with verified M-PESA confirmations to fulfill dispatches.</p>
+              <form onsubmit="handleCourierLogin(event)" style="display:flex; flex-direction:column; gap: 15px; padding: 20px;">
+                <div class="form-group">
+                  <label style="color:#FFF; display:block; font-size:0.85rem; margin-bottom:5px; font-weight:600;">Depot Pochi Phone Number</label>
+                  <input type="tel" id="login-courier-phone" class="form-input" style="background:rgba(0,0,0,0.3); color:#FFF; border-color:var(--border-dark);" placeholder="e.g. 0722000005" required>
+                </div>
+                <div class="form-group">
+                  <label style="color:#FFF; display:block; font-size:0.85rem; margin-bottom:5px; font-weight:600;">4-Digit Account PIN</label>
+                  <input type="password" id="login-courier-pin" class="form-input" style="background:rgba(0,0,0,0.3); color:#FFF; border-color:var(--border-dark); text-align:center; letter-spacing:8px;" placeholder="••••" maxlength="4" required>
+                </div>
+                <button type="submit" class="cta-button" style="background:var(--secondary-orange); font-size: 1rem; padding: 12px;">
+                  🔓 Access Courier Manifests
+                </button>
+                <p style="font-size:0.8rem; text-align:center; color:var(--text-dark-secondary); margin-top: 5px;">
+                  New courier? <a href="#" onclick="openCourierSignupModal(); return false;" style="color:var(--secondary-orange); font-weight:600; text-decoration:none;">Register Courier Depot</a>
+                </p>
+              </form>
             </div>
-            <span class="live-badge" style="background:var(--secondary-orange);">Logistics Active</span>
           </div>
+
+          <div id="courier-dashboard-content" style="display:none;">
+            
+            <div class="dash-header">
+              <div>
+                <div style="display:flex; align-items:center; gap: 15px; flex-wrap:wrap; margin-bottom: 0.5rem;">
+                  <h1 style="font-size: 2rem;">Courier Logistics Hub</h1>
+                  <button class="tool-btn" style="background:var(--secondary-orange); border-color:var(--secondary-orange); color:white; padding: 6px 12px; font-size: 0.9rem;" onclick="openCourierSignupModal()">➕ Register Depot</button>
+                  <button class="tool-btn" style="background:transparent; border-color:var(--accent-red); color:var(--accent-red); padding: 6px 12px; font-size: 0.9rem;" onclick="handleCourierLogout()">🔓 Log Out</button>
+                </div>
+                <p style="color: var(--text-dark-secondary);">Matches buyer shipping instructions with verified M-PESA confirmations to fulfill dispatches.</p>
+              </div>
+              <span class="live-badge" style="background:var(--secondary-orange);">Logistics Active</span>
+            </div>
 
           <!-- Matched Delivery manifests table -->
           <div class="glass-panel">
@@ -494,6 +555,7 @@
             </div>
           </div>
 
+          </div>
         </div>
       </section>
 
@@ -552,6 +614,10 @@
           </div>
         </div>
         <div class="form-group">
+          <label for="reg-seller-pin" style="color:var(--text-light-primary);">Create 4-Digit Account PIN</label>
+          <input type="password" id="reg-seller-pin" class="form-input" placeholder="e.g. 1234" maxlength="4" pattern="^\d{4}$" inputmode="numeric" required>
+        </div>
+        <div class="form-group">
           <label for="reg-seller-avatar" style="color:var(--text-light-primary);">Select Icon Emoji</label>
           <select id="reg-seller-avatar" class="form-select">
             <option value="🛍️">🛍️ Shop Bag</option>
@@ -584,6 +650,10 @@
         <div class="form-group">
           <label for="reg-courier-pochi" style="color:var(--text-light-primary);">Courier Pochi Phone Number</label>
           <input type="tel" id="reg-courier-pochi" class="form-input" placeholder="e.g. 0722000008" pattern="^(07|01|254)\d{8}$" inputmode="tel" required>
+        </div>
+        <div class="form-group">
+          <label for="reg-courier-pin" style="color:var(--text-light-primary);">Create 4-Digit Account PIN</label>
+          <input type="password" id="reg-courier-pin" class="form-input" placeholder="e.g. 1234" maxlength="4" pattern="^\d{4}$" inputmode="numeric" required>
         </div>
         <div class="form-group">
           <label for="reg-courier-fee" style="color:var(--text-light-primary);">Standard Shipping Fee (KES)</label>

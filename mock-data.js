@@ -42,14 +42,14 @@ const INITIAL_PRODUCTS = [
   }
 ];
 
-const COLLECTION_POINTS = [
-  { id: "hub-1", name: "Eldoret Main Hub", fee: 250, PochiPhone: "0722000001" },
-  { id: "hub-2", name: "Kisumu Lakeside Depot", fee: 300, PochiPhone: "0722000002" },
-  { id: "hub-3", name: "Kakamega Junction Office", fee: 280, PochiPhone: "0722000003" },
-  { id: "hub-4", name: "Nyeri Central Point", fee: 200, PochiPhone: "0722000004" },
-  { id: "hub-5", name: "Nairobi CBD Pick-up Centre", fee: 150, PochiPhone: "0722000005" },
-  { id: "hub-6", name: "Mombasa GPO Office", fee: 350, PochiPhone: "0722000006" },
-  { id: "hub-7", name: "Nakuru Highway Hub", fee: 220, PochiPhone: "0722000007" }
+let COLLECTION_POINTS = [
+  { id: "hub-1", name: "Eldoret Main Hub", fee: 250, PochiPhone: "0722000001", pin: "1234" },
+  { id: "hub-2", name: "Kisumu Lakeside Depot", fee: 300, PochiPhone: "0722000002", pin: "1234" },
+  { id: "hub-3", name: "Kakamega Junction Office", fee: 280, PochiPhone: "0722000003", pin: "1234" },
+  { id: "hub-4", name: "Nyeri Central Point", fee: 200, PochiPhone: "0722000004", pin: "1234" },
+  { id: "hub-5", name: "Nairobi CBD Pick-up Centre", fee: 150, PochiPhone: "0722000005", pin: "1234" },
+  { id: "hub-6", name: "Mombasa GPO Office", fee: 350, PochiPhone: "0722000006", pin: "1234" },
+  { id: "hub-7", name: "Nakuru Highway Hub", fee: 220, PochiPhone: "0722000007", pin: "1234" }
 ];
 
 const COURIER_PROVIDERS = [
