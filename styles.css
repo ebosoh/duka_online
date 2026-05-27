@@ -1580,4 +1580,26 @@ body:not([style*="background-color: var(--bg-light)"]) .modal-close-btn {
     gap: 0.85rem !important;
     max-height: 70vh !important;
   }
+
+}
+
+/* Hide buyer instructions and ad cards on mobile viewports (under 768px) to reduce distraction, while revealing the blinking badge. Visible on tablets (>=768px), laptops, and desktops. */
+@media (max-width: 767px) {
+  .buyer-instructions-wrapper {
+    display: none !important;
+  }
+  .blinking-mobile-badge {
+    display: inline-flex !important;
+  }
+}
+
+/* Dynamic blinking pulsing animation for Payout Point badges */
+@keyframes pulseBlink {
+  0% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.97); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.live-badge {
+  animation: pulseBlink 2s infinite ease-in-out;
 }
