@@ -1,5 +1,5 @@
 /**
- * DUKA ONLINE - CORE APPLICATION CONTROLLER (FLATTENED WITH FIREBASE SYNC & MULTI-TENANT ROUTING)
+ * DUKA ONLINE - CORE APPLICATION CONTROLLER (FLATTENED & LIVE-TUNED)
  * Optimized for TikTok/FB Live shopping, Pochi la Biashara peer-to-peer transfers, and instant courier matching.
  */
 
@@ -20,10 +20,10 @@ const firebaseConfig = {
 
 // Registered Merchants (Dynamic Live Show Channels)
 const ACTIVE_SELLERS = [
-  { id: "seller-1", name: "Grogan Spares Zone", PochiPhone: "0722987654", shortName: "Grogan", avatar: "🛠️", initBid: "A01", initPrice: 3200 },
-  { id: "seller-2", name: "Amina Omondi Fashion", PochiPhone: "0722111111", shortName: "Amina", avatar: "👗", initBid: "B12", initPrice: 1800 },
-  { id: "seller-3", name: "Velo Nicotine Shop", PochiPhone: "0711555555", shortName: "Velo", avatar: "🚬", initBid: "V05", initPrice: 1200 },
-  { id: "seller-4", name: "TechBrain Gadgets Hub", PochiPhone: "0799000000", shortName: "Gadgets", avatar: "💻", initBid: "C09", initPrice: 4500 }
+  { id: "seller-1", name: "Grogan Spares Zone", PochiPhone: "0722987654", shortName: "Grogan", avatar: "🛠️", initItem: "Heavy-Duty Brake Pads (Pair)", initPrice: 3200 },
+  { id: "seller-2", name: "Amina Omondi Fashion", PochiPhone: "0722111111", shortName: "Amina", avatar: "👗", initItem: "Vintage Denim Jacket", initPrice: 1800 },
+  { id: "seller-3", name: "Velo Nicotine Shop", PochiPhone: "0711555555", shortName: "Velo", avatar: "🚬", initItem: "Velo Nicotine Pouches 2-Pack", initPrice: 1200 },
+  { id: "seller-4", name: "TechBrain Gadgets Hub", PochiPhone: "0799000000", shortName: "Gadgets", avatar: "💻", initItem: "Wireless ANC Earbuds Pro", initPrice: 4500 }
 ];
 
 // Global State Variables
@@ -34,9 +34,8 @@ let pendingSTKPush = null;
 let deferredInstallPrompt = null; 
 let db = null; // Firebase Firestore Reference
 let firestoreUnsubscribe = null; // Firestore listener teardown
-let selectedMerchantId = "seller-1"; // Active channel buyer is watching
-let activeSellerChannel = "0722987654"; // Pochi phone number of seller dashboard
-let streamInterval = null; // Comments interval
+let selectedMerchantId = "seller-1"; // Active channel buyer is paying
+let activeSellerChannel = "0722987654"; // Pochi phone number of active seller dashboard
 
 const GA4_PROPERTY_ID = "G-FS40Z82Q3E"; // Pre-saved GA4 ID
 
@@ -51,7 +50,6 @@ document.addEventListener("DOMContentLoaded", () => {
   setupEventListeners();
   populateDropdowns();
   switchRole("buyer"); // Default to buyer view
-  startLiveStreamSimulator();
 });
 
 // PWA & Service Worker registration
@@ -153,7 +151,6 @@ function loadLocalFallback() {
     transactions = JSON.parse(storedTxns);
   } else if (typeof INITIAL_TRANSACTIONS !== "undefined") {
     transactions = INITIAL_TRANSACTIONS.map((txn) => {
-      // Update seed data structure to match new dynamic merchants
       const seedSeller = ACTIVE_SELLERS[0];
       return {
         ...txn,
@@ -170,7 +167,7 @@ function saveLocalFallback() {
   localStorage.setItem("duka_transactions", JSON.stringify(transactions));
 }
 
-// Populate Seller list dropdowns
+// Populate dropdown options
 function populateDropdowns() {
   // Populate Buyer Checkout Seller Selector
   const buyerSellerSelect = document.getElementById("checkout-live-seller");
@@ -224,7 +221,6 @@ function switchRole(role) {
 
   trackEvent("role_view_changed", { role: role });
 
-  // Custom styling for active panel
   if (role === "buyer") {
     document.body.style.backgroundColor = "var(--bg-light)";
   } else {
@@ -253,15 +249,10 @@ function renderBuyerPortal() {
 
   const seller = ACTIVE_SELLERS.find((s) => s.id === sellerSelect.value) || ACTIVE_SELLERS[0];
   
-  // Update Live stream UI overlays
-  const streamerAvatar = document.getElementById("streamer-avatar-tag");
+  // Update streamer welcome details
   const streamerName = document.getElementById("streamer-name-tag");
-  const streamDesc = document.getElementById("stream-item-desc");
-
-  if (streamerAvatar) streamerAvatar.textContent = seller.avatar;
-  if (streamerName) streamerName.textContent = seller.name;
-  if (streamDesc) {
-    streamDesc.innerHTML = `Watching Live. Bid item and pay directly to **${seller.name}** Pochi Account. Current item bidding code is <strong style="color:var(--secondary-orange); font-size:1.1rem;">${seller.initBid}</strong> (KES ${seller.initPrice.toLocaleString()}).`;
+  if (streamerName) {
+    streamerName.textContent = `Checkout for: ${seller.name}`;
   }
 }
 
@@ -271,13 +262,11 @@ function handleCheckoutSellerChange() {
 
   const seller = ACTIVE_SELLERS.find((s) => s.id === sellerSelect.value);
   if (seller) {
-    // Autopopulate Bid Code and Price with seller's active demo values
-    document.getElementById("buyer-form-bid-code").value = seller.initBid;
+    // Autopopulate fields with selected seller's active demo values
+    document.getElementById("buyer-form-item-name").value = seller.initItem;
     document.getElementById("buyer-form-bid-price").value = seller.initPrice;
     
-    // Clear and start fresh stream mockup comments
-    document.getElementById("stream-comment-feed").innerHTML = "";
-    showToast(`Switched Live Stream to: ${seller.name}`, "success");
+    showToast(`Paying Seller Channel: ${seller.name}`, "success");
     
     renderBuyerPortal();
     updateCheckoutPricing();
@@ -308,11 +297,11 @@ function triggerBuyerCheckout(event) {
   const name = document.getElementById("buyer-form-name").value.trim();
   const contact = document.getElementById("buyer-form-contact").value.trim();
   const sellerSelect = document.getElementById("checkout-live-seller");
-  const bidCode = document.getElementById("buyer-form-bid-code").value.trim().toUpperCase();
+  const itemName = document.getElementById("buyer-form-item-name").value.trim();
   const bidPrice = parseFloat(document.getElementById("buyer-form-bid-price").value) || 0;
   const hubId = document.getElementById("checkout-collection-point").value;
 
-  if (!name || !contact || !sellerSelect.value || !bidCode || bidPrice <= 0 || !hubId) {
+  if (!name || !contact || !sellerSelect.value || !itemName || bidPrice <= 0 || !hubId) {
     showToast("Please fill in all Checkout details!", "error");
     return;
   }
@@ -326,8 +315,8 @@ function triggerBuyerCheckout(event) {
     merchantId: seller.id,
     merchantName: seller.name,
     merchantPhone: seller.PochiPhone,
-    productName: `Bid Code: ${bidCode}`,
-    productId: bidCode,
+    productName: itemName,
+    productId: "custom",
     productPrice: bidPrice,
     deliveryFee: hub.fee,
     totalPaid: bidPrice + hub.fee,
@@ -336,7 +325,7 @@ function triggerBuyerCheckout(event) {
 
   trackEvent("checkout_stk_initiated", {
     sellerName: seller.name,
-    bidCode: bidCode,
+    itemName: itemName,
     totalAmount: pendingSTKPush.totalPaid
   });
 
@@ -368,8 +357,6 @@ function confirmSimulatedPayment() {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     let code = "QR" + Array.from({length: 8}, () => chars[Math.floor(Math.random() * chars.length)]).join("");
     
-    // Formulate a beautiful, highly realistic Pochi la Biashara raw SMS layout
-    // Safaricom routes funds peer-to-peer into the Pochi account of the merchant
     const simulatedSMS = `${code} Confirmed. Ksh${buyerData.totalPaid.toLocaleString()}.00 sent to Pochi la Biashara ${buyerData.merchantName.toUpperCase()} ${buyerData.merchantPhone} on ${new Date().toLocaleDateString("en-KE")} at ${new Date().toLocaleTimeString("en-KE", { hour: "numeric", minute: "2-digit" })}. New M-PESA balance is Ksh154,200.00. Transaction cost Ksh0.00.`;
 
     const parsedSMS = MpesaParser.parseSMS(simulatedSMS);
@@ -377,12 +364,10 @@ function confirmSimulatedPayment() {
     if (parsedSMS) {
       const mergedTxn = MpesaParser.mergeTransaction(parsedSMS, buyerData);
       
-      // Inject merchant IDs for correct dashboard routing
       mergedTxn.merchantId = buyerData.merchantId;
       mergedTxn.merchantName = buyerData.merchantName;
       mergedTxn.merchantPhone = buyerData.merchantPhone;
 
-      // Save to Firebase Cloud Firestore or fallback
       if (db) {
         db.collection("transactions").add(mergedTxn)
           .then((docRef) => {
@@ -400,7 +385,6 @@ function confirmSimulatedPayment() {
         transactions.unshift(mergedTxn);
         saveLocalFallback();
         
-        // Manual local notification flash
         if (mergedTxn.merchantPhone === activeSellerChannel) {
           triggerFomoNotification(mergedTxn);
         }
@@ -410,7 +394,6 @@ function confirmSimulatedPayment() {
         showToast(`SMS Auto-Merged with ${buyerData.collectionPoint} Destination.`, "courier");
       }
 
-      // Pre-fill text area automatically for presentation
       const smsTextarea = document.getElementById("sms-input-field");
       if (smsTextarea) {
         smsTextarea.value = simulatedSMS;
@@ -425,6 +408,8 @@ function confirmSimulatedPayment() {
       // Clear forms
       document.getElementById("buyer-form-name").value = "";
       document.getElementById("buyer-form-contact").value = "";
+      document.getElementById("buyer-form-item-name").value = "";
+      document.getElementById("buyer-form-bid-price").value = "";
       document.getElementById("checkout-collection-point").selectedIndex = 0;
       updateCheckoutPricing();
 
@@ -447,7 +432,6 @@ function handleSellerChannelChange() {
 }
 
 function renderSellerDashboard() {
-  // Filter transactions belonging ONLY to this specific merchant channel
   const merchantTxns = transactions.filter((t) => t.merchantPhone === activeSellerChannel);
 
   let totalProductSales = 0;
@@ -476,7 +460,7 @@ function renderSellerDashboard() {
   tableBody.innerHTML = "";
 
   if (merchantTxns.length === 0) {
-    tableBody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--text-dark-secondary);">No payments matched for this channel yet. Stream live and ask buyers to checkout!</td></tr>`;
+    tableBody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--text-dark-secondary);">No payments matched for this channel yet. Live show is waiting...</td></tr>`;
     return;
   }
 
@@ -568,14 +552,11 @@ function handleManualSMSParse() {
     return;
   }
 
-  // Double check if the SMS specifies a phone that belongs to a registered seller
   let matchedSeller = ACTIVE_SELLERS.find(s => smsText.includes(s.PochiPhone) || smsText.toUpperCase().includes(s.name.toUpperCase()) || smsText.toUpperCase().includes(s.shortName.toUpperCase()));
   if (!matchedSeller) {
-    // Default to currently active channel
     matchedSeller = ACTIVE_SELLERS.find(s => s.PochiPhone === activeSellerChannel);
   }
 
-  // Look for a pending unmatched transaction in local cache
   const pendingMatch = transactions.find((t) => 
     !t.matched && 
     t.merchantPhone === matchedSeller.PochiPhone &&
@@ -621,12 +602,11 @@ function handleManualSMSParse() {
       showToast(`Merged: Matched with pending Buyer ${pendingMatch.buyerName}!`, "success");
     }
   } else {
-    // Generic direct matching from SMS
     const mockBuyerForm = {
       buyerName: parsed.mpesaSender,
       buyerContact: parsed.mpesaPhone,
       collectionPoint: "Nairobi CBD Pick-up Centre",
-      productName: "Direct Sale (Bid Code: A01)",
+      productName: `Direct Sale: ${matchedSeller.initItem}`,
       productPrice: Math.round(parsed.amountPaid * 0.85),
       merchantId: matchedSeller.id,
       merchantName: matchedSeller.name,
@@ -676,8 +656,8 @@ function simulateLiveBuyerPurchase() {
     merchantId: seller.id,
     merchantName: seller.name,
     merchantPhone: seller.PochiPhone,
-    productName: `Bid Code: ${seller.initBid}`,
-    productId: seller.initBid,
+    productName: seller.initItem,
+    productId: "custom",
     productPrice: seller.initPrice,
     deliveryFee: randHub.fee,
     totalPaid: seller.initPrice + randHub.fee,
@@ -690,13 +670,13 @@ function simulateLiveBuyerPurchase() {
 
   if (db) {
     db.collection("transactions").add(mockOrder)
-      .then(() => showToast(`Simulated Live Order placed by ${randName} for item ${seller.initBid}!`, "success"))
+      .then(() => showToast(`Simulated Live Order placed by ${randName} for ${seller.initItem}!`, "success"))
       .catch((err) => console.error("[Firebase] Mock order failed:", err));
   } else {
     transactions.unshift(mockOrder);
     saveLocalFallback();
     renderApp();
-    showToast(`Simulated Live Order placed by ${randName} for item ${seller.initBid}!`, "success");
+    showToast(`Simulated Live Order placed by ${randName} for ${seller.initItem}!`, "success");
   }
 }
 
@@ -823,64 +803,6 @@ function triggerReportPrint(timeframe) {
 
   document.body.prepend(printHeaderDiv);
   window.print();
-}
-
-// ==========================================================================
-// LIVE COMMENT SIMULATOR FOR TIKTOK MOCKUP VIEW
-// ==========================================================================
-function startLiveStreamSimulator() {
-  if (streamInterval) clearInterval(streamInterval);
-
-  const comments = [
-    "Mine! Code A01!",
-    "Wells Fargo Eldorado branch has fast delivery",
-    "Sending my PIN now",
-    "Pochi la Biashara credits instantly",
-    "Joy W: Just paid KES 3,200!",
-    "B12 look so nice",
-    "Velo nicotine pouches available?",
-    "Is Kisumu Lakeside depot secure?",
-    "Just secured code E09!",
-    "Grogan spares brake pads are durable",
-    "Confirming Eldoret Main Hub delivery details"
-  ];
-
-  const commentFeed = document.getElementById("stream-comment-feed");
-  if (!commentFeed) return;
-
-  streamInterval = setInterval(() => {
-    const randComment = comments[Math.floor(Math.random() * comments.length)];
-    const randUser = ["Amina O.", "Silas K.", "Kiprop", "Wanjiku G.", "Omondi", "Kamau"][Math.floor(Math.random() * 6)];
-    
-    const commentItem = document.createElement("div");
-    commentItem.className = "comment-item";
-    commentItem.innerHTML = `💬 <strong>${randUser}</strong>: ${randComment}`;
-    
-    commentFeed.appendChild(commentItem);
-    
-    // Auto-scroll comments up
-    if (commentFeed.children.length > 3) {
-      commentFeed.children[0].remove();
-    }
-  }, 3500);
-}
-
-function toggleStreamSimulation() {
-  const playBtn = document.getElementById("stream-play-btn");
-  const audience = document.getElementById("live-audience-num");
-  
-  if (playBtn) {
-    if (playBtn.textContent === "▶") {
-      playBtn.textContent = "⏸";
-      playBtn.style.opacity = "0.3";
-      showToast("TikTok Live Stream Simulation playing...", "success");
-      if (audience) audience.textContent = `${Math.floor(1000 + Math.random() * 2000)} watching`;
-    } else {
-      playBtn.textContent = "▶";
-      playBtn.style.opacity = "1";
-      showToast("Simulation paused.", "error");
-    }
-  }
 }
 
 // ==========================================================================

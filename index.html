@@ -201,36 +201,26 @@
       <section id="buyer-view" class="view-panel active">
         <div class="buyer-grid">
           
-          <!-- Mock live broadcast showcase -->
+          <!-- Welcome and Instructions Panel -->
           <div>
-            <div class="live-stream-placeholder" id="buyer-stream-frame">
-              <button class="stream-play-btn" id="stream-play-btn" onclick="toggleStreamSimulation()">▶</button>
+            <div class="auction-card" style="background: linear-gradient(135deg, #ffffff, #F0FFF4); border-left: 5px solid var(--primary-green);">
+              <span class="live-badge" style="background:var(--primary-green); margin-bottom: 1rem;">🔴 Direct Payout Point</span>
+              <h2 style="font-family: 'Outfit'; font-size: 1.8rem; color: var(--primary-green-dark); margin-bottom: 0.75rem;" id="streamer-name-tag">Secure Payout Point</h2>
+              <p style="font-size: 0.95rem; line-height: 1.6; margin-bottom: 1.25rem;">
+                You are paying your favorite social media live streamer peer-to-peer. Our app automatically routes your product payment to their registered **Pochi la Biashara** wallet and synchronizes shipping directly with the courier hub.
+              </p>
               
-              <div class="live-stream-overlay-top">
-                <div class="streamer-badge">
-                  <div class="streamer-avatar" id="streamer-avatar-tag">S</div>
-                  <div>
-                    <h4 style="font-size:0.9rem;" id="streamer-name-tag">Seller Live Stream</h4>
-                    <span style="font-size:0.7rem; color:rgba(255,255,255,0.7);">Streaming Live</span>
-                  </div>
-                </div>
-                
-                <div class="live-audience-counter">
-                  <span style="width:6px; height:6px; background:#D90429; border-radius:50%;"></span>
-                  <span id="live-audience-num">1.4K watching</span>
-                </div>
-              </div>
-              
-              <div class="live-stream-overlay-bottom">
-                <div style="background: rgba(0,0,0,0.5); padding: 10px; border-radius:8px;">
-                  <span class="live-badge" style="margin-bottom:5px;">Live Broadcast Show</span>
-                  <h3 style="font-size:1.15rem; margin-bottom:5px;" id="stream-item-desc">Watch live, identify your desired product code, type it below to pay peer-to-peer!</h3>
-                </div>
-                
-                <div class="comment-feed" id="stream-comment-feed">
-                  <div class="comment-item">💬 <strong>Joy W.</strong>: Mine! Code A01!</div>
-                  <div class="comment-item">💬 <strong>Mbugua</strong>: Eldorado shipping is fast!</div>
-                </div>
+              <div style="background: rgba(255,255,255,0.7); padding: 1.25rem; border-radius: var(--border-radius-md); border: 1px dashed rgba(0, 176, 80, 0.25);">
+                <h4 style="font-family: 'Outfit'; color: var(--text-light-primary); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 6px;">
+                  📌 How to complete your purchase:
+                </h4>
+                <ol style="margin-left: 1.25rem; font-size: 0.85rem; display: flex; flex-direction: column; gap: 6px; color: var(--text-light-secondary);">
+                  <li>Watch the social media live stream of choice (TikTok, Facebook, Instagram, etc.).</li>
+                  <li>Click their shared payout link (which brings you directly to this secure form).</li>
+                  <li>Select their channel from the dropdown list, then enter the **Item Name** and **Agreed Price** announced on the live show.</li>
+                  <li>Choose your preferred courier collection depot and click Pay.</li>
+                  <li>Input your M-PESA PIN on the pop-up prompt to lock and secure your item!</li>
+                </ol>
               </div>
             </div>
             
@@ -259,17 +249,17 @@
               <div class="form-group">
                 <label for="checkout-live-seller">Select TikTok / FB Seller Channel</label>
                 <select id="checkout-live-seller" class="form-select" onchange="handleCheckoutSellerChange()" required>
-                  <!-- Populate dynamically from COURIER_PROVIDERS / merchants -->
+                  <!-- Populate dynamically from ACTIVE_SELLERS -->
                 </select>
               </div>
               
-              <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <div class="form-group" style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 10px;">
                 <div>
-                  <label for="buyer-form-bid-code">Item Bid Code (e.g. A01)</label>
-                  <input type="text" id="buyer-form-bid-code" class="form-input" placeholder="e.g. A01" style="text-transform: uppercase;" required>
+                  <label for="buyer-form-item-name">Item Name (e.g. Denim Jacket)</label>
+                  <input type="text" id="buyer-form-item-name" class="form-input" placeholder="e.g. Denim Jacket, Brake Pads" required>
                 </div>
                 <div>
-                  <label for="buyer-form-bid-price">Agreed Product Price (KES)</label>
+                  <label for="buyer-form-bid-price">Agreed Price (KES)</label>
                   <input type="number" id="buyer-form-bid-price" class="form-input" placeholder="e.g. 3200" oninput="updateCheckoutPricing()" required>
                 </div>
               </div>
@@ -382,7 +372,7 @@
                   Paste M-PESA SMS text received on your merchant phones below. The regex engine will instantly match the Buyer's details, merge them into a single record, and update the Courier manifests.
                 </p>
                 
-                <textarea id="sms-input-field" class="parser-textarea" placeholder="Paste incoming MPESA text here. Example: QRE58KJS6F Confirmed. Ksh3,450.00 paid to Grogan Spares Zone on 27/5/26 at 4:15 PM..."></textarea>
+                <textarea id="sms-input-field" class="parser-textarea" placeholder="Paste incoming MPESA text here. Example: QRE58KJS6F Confirmed. Ksh3,450.00 sent to Pochi la Biashara GROGAN SPARES ZONE 0722987654 on 27/5/26 at 4:15 PM..."></textarea>
                 
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                   <button class="parser-action-btn" onclick="handleManualSMSParse()">
@@ -427,7 +417,7 @@
                   <tr>
                     <th>MPESA Code</th>
                     <th>Buyer Info</th>
-                    <th>Bid Details</th>
+                    <th>Item Details</th>
                     <th>Total Paid</th>
                     <th>Split Breakdown</th>
                     <th>Delivery Hub</th>
