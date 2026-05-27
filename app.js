@@ -873,18 +873,12 @@ function updateCourierTimeCounters() {
     const diffSecs = Math.floor(diffMs / 1000);
     const diffMins = Math.floor(diffSecs / 60);
     const diffHours = Math.floor(diffMins / 60);
-    const diffDays = Math.floor(diffHours / 24);
 
     const displaySecs = diffSecs % 60;
     const displayMins = diffMins % 60;
-    const displayHours = diffHours % 24;
+    const displayHours = diffHours; // Cumulative hours
 
-    let timeStr = "";
-    if (diffDays > 0) timeStr += `${diffDays}d `;
-    if (diffHours > 0 || diffDays > 0) timeStr += `${displayHours}h `;
-    if (diffMins > 0 || diffHours > 0 || diffDays > 0) timeStr += `${displayMins}m `;
-    timeStr += `${displaySecs}s`;
-
+    let timeStr = `${displayHours}h ${displayMins}m ${displaySecs}s`;
     el.textContent = timeStr;
 
     // Dynamically calculate and transition statuses in real-time
