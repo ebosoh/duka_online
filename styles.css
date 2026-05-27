@@ -713,7 +713,7 @@ h1, h2, h3, h4, h5, h6 {
   background: linear-gradient(135deg, rgba(26, 29, 36, 0.9), rgba(15, 23, 42, 0.95));
   border: 1.5px dashed rgba(255, 159, 28, 0.35);
   border-radius: var(--border-radius-md);
-  padding: 15px 25px;
+  padding: 24px 25px 16px 25px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -727,16 +727,17 @@ h1, h2, h3, h4, h5, h6 {
 .ad-banner-spot::after {
   content: 'Sponsored Ad';
   position: absolute;
-  top: 0;
-  right: 0;
-  background: var(--secondary-orange);
-  color: white;
-  font-size: 0.6rem;
-  font-weight: 800;
+  top: 6px;
+  right: 16px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--text-dark-secondary);
+  font-size: 0.55rem;
+  font-weight: 700;
   padding: 2px 8px;
-  border-bottom-left-radius: 8px;
+  border-radius: 4px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.8px;
 }
 
 .ad-banner-spot .ad-badge-tag {
@@ -785,7 +786,7 @@ h1, h2, h3, h4, h5, h6 {
   .ad-banner-spot {
     flex-direction: column;
     text-align: center;
-    padding: 15px;
+    padding: 24px 15px 15px 15px;
     gap: 8px;
   }
   .ad-banner-spot .ad-desc {
