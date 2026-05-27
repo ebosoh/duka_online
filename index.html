@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#00B050">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="description" content="Duka Online - Premium Progressive Web App bridging the gap between live-shopping, M-PESA confirmation parsing, and split payouts for Kenyan merchants and couriers.">
+  
+  <title>Duka Online - Kenya's Live Shopping PWA</title>
+  
+  <!-- Manifest & Favicon linkage (Root Collapsed) -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  
+  <!-- CSS Design System Stylesheet (Root Collapsed) -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- PWA Install Banner -->
+  <div id="pwa-install-banner" class="pwa-install-banner">
+    <div>⚡ Install <strong>Duka Online</strong> on your homescreen for instant alerts & offline tracking!</div>
+    <div style="display: flex; gap: 8px;">
+      <button onclick="installPWA()">Install</button>
+      <button style="background: transparent; color: white;" onclick="dismissInstallBanner()">Dismiss</button>
+    </div>
+  </div>
+
+  <div id="app-container">
+    
+    <!-- Top Responsive Banner Ad Space (Space 1) -->
+    <div class="ad-banner-spot" id="top-responsive-ad">
+      <div style="display:flex; align-items:center; gap: 12px; flex-wrap: wrap;">
+        <span class="ad-badge-tag">Promo</span>
+        <div>
+          <span class="ad-title">Safaricom Live Stream bundles!</span>
+          <span class="ad-desc">— Stream TikTok & FB Live shows with zero no-expiry data limits.</span>
+        </div>
+      </div>
+      <button class="ad-button" onclick="window.open('https://www.safaricom.co.ke', '_blank')">Activate Now</button>
+    </div>
+
+    <!-- Unified Application Header -->
+    <header class="app-header">
+      <div class="brand-section">
+        <div class="brand-logo">D</div>
+        <div class="brand-title">Duka <span style="font-weight:400;">Online</span></div>
+      </div>
+      <nav class="nav-tabs">
+        <button class="nav-btn active" data-role="buyer" onclick="switchRole('buyer')">
+          🛍️ Buyer Portal
+        </button>
+        <button class="nav-btn" data-role="seller" onclick="switchRole('seller')">
+          📈 Seller Dashboard
+        </button>
+        <button class="nav-btn" data-role="courier" onclick="switchRole('courier')">
+          🚚 Courier Portal
+        </button>
+      </nav>
+    </header>
+
+    <!-- Main Views Controller -->
+    <main class="main-content">
+      
+      <!-- ========================================== -->
+      <!-- VIEW 1: BUYER PORTAL (Light Theme Layout)  -->
+      <!-- ========================================== -->
+      <section id="buyer-view" class="view-panel active">
+        <div class="buyer-grid">
+          
+          <!-- Product showcase & catalog details -->
+          <div>
+            <div class="auction-card" id="buyer-product-showcase">
+              <!-- Rendered Dynamically via JS -->
+            </div>
+            
+            <!-- Space 2: In-Feed Native Card Ad (Space 2 - Buyer Portal) -->
+            <div class="ad-native-card-spot">
+              <div class="ad-native-header">
+                <div class="ad-native-icon">🚚</div>
+                <div>
+                  <h4 class="ad-native-sponsor">Wells Fargo Safe Shipping</h4>
+                  <div style="font-size:0.7rem; color:var(--text-light-secondary);">Promoted Logistics</div>
+                </div>
+              </div>
+              <p class="ad-native-body">Need secure, next-day transit to Eldoret, Kisumu or Nyeri? Wells Fargo handles your live-auction items safely with 100% loss insurance coverage. Book transit directly via Duka Online checkout!</p>
+              <button class="ad-native-action-btn" onclick="window.open('https://www.fargocourier.co.ke', '_blank')">Learn More</button>
+            </div>
+          </div>
+          
+          <!-- Checkout Contact & Dispatch Information Form -->
+          <div class="checkout-form-card">
+            <h2 style="font-size: 1.5rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 8px;">
+              ⚡ Express Live Checkout
+            </h2>
+            
+            <form id="buyer-checkout-form" onsubmit="triggerBuyerCheckout(event)">
+              <div class="form-group">
+                <label for="buyer-form-name">Your Full Name (As per M-PESA ID)</label>
+                <input type="text" id="buyer-form-name" class="form-input" placeholder="e.g. Michael Kiprop" required>
+              </div>
+              
+              <div class="form-group">
+                <label for="buyer-form-contact">Your M-PESA Phone Number</label>
+                <input type="tel" id="buyer-form-contact" class="form-input" placeholder="e.g. 0712345678 or 2547..." required>
+              </div>
+              
+              <div class="form-group">
+                <label for="checkout-collection-point">Select Courier Collection Point</label>
+                <select id="checkout-collection-point" class="form-select" required>
+                  <option value="" disabled selected>-- Choose Pickup Hub --</option>
+                  <!-- Populate dynamically from COLLECTION_POINTS -->
+                </select>
+              </div>
+
+              <!-- Payout and Shipping breakdown -->
+              <div class="pricing-breakdown">
+                <div class="breakdown-row">
+                  <span>Product Buyout Price:</span>
+                  <strong id="breakdown-prod-price">KES 0</strong>
+                </div>
+                <div class="breakdown-row">
+                  <span>Hub Delivery Fee:</span>
+                  <strong id="breakdown-delivery-fee">KES 0</strong>
+                </div>
+                <div class="breakdown-row total">
+                  <span>Total Amount (M-PESA):</span>
+                  <strong id="breakdown-total-price">KES 0</strong>
+                </div>
+              </div>
+
+              <button type="submit" class="cta-button">
+                📱 Pay & Secure Item Now
+              </button>
+              <p style="font-size: 0.75rem; text-align: center; margin-top: 0.75rem; color: var(--text-light-secondary);">
+                Immediate M-PESA STK Push will be triggered. Confirm with your PIN to hold package.
+              </p>
+            </form>
+          </div>
+          
+        </div>
+      </section>
+
+      <!-- ========================================== -->
+      <!-- VIEW 2: SELLER DASHBOARD (Dark Theme Layout)-->
+      <!-- ========================================== -->
+      <section id="seller-view" class="view-panel">
+        <div class="dashboard-container">
+          
+          <div class="dash-header">
+            <div>
+              <h1 style="font-size: 2rem;">Seller Live Control Panel</h1>
+              <p style="color: var(--text-dark-secondary);">Real-time M-PESA message matching, platform split tracker, and courier manifest management.</p>
+            </div>
+            <span class="live-badge" style="background:#00B050;">Live Broadcast Connected</span>
+          </div>
+
+          <!-- Statistics breakdown row -->
+          <div class="stats-grid">
+            <div class="stat-card">
+              <span class="stat-label">Total Product Sales (Seller Till)</span>
+              <div class="stat-value" id="seller-sales-value">KES 0</div>
+              <span class="stat-trend">🟢 100% Payout Disbursed Direct</span>
+            </div>
+            
+            <div class="stat-card courier">
+              <span class="stat-label">Total Logistics Payout (Courier Split)</span>
+              <div class="stat-value" id="courier-earnings-value">KES 0</div>
+              <span class="stat-trend" style="color: var(--secondary-orange);">🚚 50% split transferred to hub</span>
+            </div>
+
+            <div class="stat-card platform">
+              <span class="stat-label">App Platform Fee (Safaricom Split)</span>
+              <div class="stat-value" id="platform-fees-value">KES 0</div>
+              <span class="stat-trend" style="color: var(--accent-red);">⚡ 50% platform service fee</span>
+            </div>
+          </div>
+
+          <!-- Action and matching grid -->
+          <div class="dashboard-grid" style="margin-bottom: 2rem;">
+            
+            <!-- Left panel: MPESA Raw SMS Pasteur & Parser -->
+            <div class="glass-panel">
+              <div class="panel-title-bar">
+                <h3 class="panel-title">📩 Live M-PESA Confirmation SMS Feed</h3>
+              </div>
+              
+              <div class="parser-area">
+                <p style="color: var(--text-dark-secondary); font-size: 0.85rem; margin-bottom: 0.5rem;">
+                  Sellers: Paste M-PESA SMS text received on your merchant phones below. The regex engine will instantly match the Buyer's details, merge them into a single record, and update the Courier manifests.
+                </p>
+                
+                <textarea id="sms-input-field" class="parser-textarea" placeholder="Paste incoming MPESA text here. Example: QRE58KJS6F Confirmed. Ksh3,450.00 paid to Grogan Spares Zone on 27/5/26 at 4:15 PM..."></textarea>
+                
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                  <button class="parser-action-btn" onclick="handleManualSMSParse()">
+                    ⚡ Process and Match SMS
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right panel: Printing Report controls & filters -->
+            <div class="glass-panel">
+              <div class="panel-title-bar">
+                <h3 class="panel-title">🖨️ Transaction Report Printer</h3>
+              </div>
+              
+              <p style="color: var(--text-dark-secondary); font-size: 0.85rem; margin-bottom: 1.5rem;">
+                Select a time duration filter to print optimized reports or export clean PDF logs for inventory reconciliations. Dark mode background is hidden automatically in prints to conserve ink.
+              </p>
+              
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <button class="tool-btn" onclick="triggerReportPrint('hourly')">🕒 Hourly Print</button>
+                <button class="tool-btn" onclick="triggerReportPrint('daily')">📅 Today's Report</button>
+                <button class="tool-btn" onclick="triggerReportPrint('weekly')">🗓️ Weekly Ledger</button>
+                <button class="tool-btn" onclick="triggerReportPrint('monthly')">📊 Monthly Analysis</button>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Central Live transaction ledger -->
+          <div class="glass-panel">
+            <div class="panel-title-bar">
+              <h3 class="panel-title">🧾 Unified Live Transaction Ledger (Matched Logs)</h3>
+            </div>
+            
+            <div class="table-container">
+              <table class="transaction-table">
+                <thead>
+                  <tr>
+                    <th>MPESA Code</th>
+                    <th>Buyer Info</th>
+                    <th>Total Paid</th>
+                    <th>Split Breakdown</th>
+                    <th>Delivery Hub</th>
+                    <th>SMS Status</th>
+                    <th>Logistics Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="seller-txn-table-body">
+                  <!-- Generated Dynamically via JS -->
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Space 2 (Seller View Ad Card Alternate) -->
+            <div class="ad-native-card-spot">
+              <div class="ad-native-header">
+                <div class="ad-native-icon" style="background:var(--secondary-orange)">💰</div>
+                <div>
+                  <h4 class="ad-native-sponsor" style="color:white;">MPESA Pochi la Biashara Premium Merchant Accounts</h4>
+                  <div style="font-size:0.7rem; color:var(--text-dark-secondary);">Promoted Business Finance</div>
+                </div>
+              </div>
+              <p class="ad-native-body">Separate your business earnings from personal funds. Safaricom Pochi la Biashara helps live streamers manage sales without mixing family money. Request an automated merchant upgrade directly from Safaricom portal today!</p>
+              <button class="ad-native-action-btn" style="background:var(--secondary-orange);" onclick="window.open('https://www.safaricom.co.ke', '_blank')">Apply Today</button>
+            </div>
+
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ========================================== -->
+      <!-- VIEW 3: COURIER PORTAL (Dark Theme Layout) -->
+      <!-- ========================================== -->
+      <section id="courier-view" class="view-panel">
+        <div class="dashboard-container">
+          
+          <div class="dash-header">
+            <div>
+              <h1 style="font-size: 2rem;">Courier Logistics Hub</h1>
+              <p style="color: var(--text-dark-secondary);">Matches buyer shipping instructions with verified M-PESA confirmations to fulfill dispatches.</p>
+            </div>
+            <span class="live-badge" style="background:var(--secondary-orange);">Logistics Active</span>
+          </div>
+
+          <!-- Matched Delivery manifests table -->
+          <div class="glass-panel">
+            <div class="panel-title-bar">
+              <h3 class="panel-title">📦 Active Package Manifest (Dispatches Hub)</h3>
+            </div>
+            
+            <div class="table-container">
+              <table class="transaction-table">
+                <thead>
+                  <tr>
+                    <th>MPESA ID</th>
+                    <th>Buyer & Contact</th>
+                    <th>Delivery Destination</th>
+                    <th>Courier Fee (Total)</th>
+                    <th>Earnings Splits</th>
+                    <th>Current Status</th>
+                    <th>Fulfillment Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="courier-txn-table-body">
+                  <!-- Generated Dynamically via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Interactive Dialog Backdrop (Simulated M-PESA STK Prompt) -->
+  <div class="modal-backdrop" id="stk-push-modal">
+    <div class="stk-modal">
+      <div class="stk-header">
+        <div class="stk-logo-circle">M</div>
+        <h3 style="font-family: 'Outfit'; font-weight: 800; font-size: 1.3rem;">Lipa na M-PESA</h3>
+      </div>
+      
+      <div class="stk-body">
+        <p class="stk-prompt" id="stk-prompt-text">
+          Do you want to pay KES 0 to Duka Online?
+        </p>
+        <input type="password" id="stk-pin-field" class="stk-pin-input" placeholder="••••" maxlength="4" autocomplete="off">
+        <div class="stk-actions">
+          <button class="stk-btn cancel" onclick="cancelSimulatedPayment()">Cancel</button>
+          <button class="stk-btn confirm" onclick="confirmSimulatedPayment()">Confirm</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification System Feed -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- FIREBASE CLIENT SDKs LOAD (Dynamic Realtime Sync) -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+  <!-- Seeding JS Assets (Root Collapsed) -->
+  <script src="mock-data.js"></script>
+  <script src="mpesa-parser.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

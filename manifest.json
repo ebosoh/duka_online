@@ -1,0 +1,36 @@
+{
+  "name": "Duka Online Live Shopping PWA",
+  "short_name": "Duka Online",
+  "description": "Premium live-shopping matching engine for M-PESA split payments and delivery logistics.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0B132B",
+  "theme_color": "#00B050",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Buyer Checkout",
+      "url": "./index.html?view=buyer",
+      "description": "Open the buyer's checkout portal"
+    },
+    {
+      "name": "Seller Dashboard",
+      "url": "./index.html?view=seller",
+      "description": "Open the live seller's matching dashboard"
+    }
+  ]
+}
