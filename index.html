@@ -331,6 +331,7 @@
                 <select id="seller-channel-selector" class="action-dropdown" style="font-size: 1.1rem; padding: 6px 15px; border-color: var(--primary-green); height: auto;" onchange="handleSellerChannelChange()">
                   <!-- Populate dynamically -->
                 </select>
+                <button class="tool-btn" style="background:var(--primary-green); border-color:var(--primary-green); color:white; padding: 6px 12px; font-size: 0.9rem;" onclick="openSellerSignupModal()">➕ Register Shop</button>
               </div>
               <p style="color: var(--text-dark-secondary);">Real-time M-PESA message matching, platform split tracker, and courier manifest management.</p>
             </div>
@@ -458,7 +459,10 @@
           
           <div class="dash-header">
             <div>
-              <h1 style="font-size: 2rem;">Courier Logistics Hub</h1>
+              <div style="display:flex; align-items:center; gap: 15px; flex-wrap:wrap; margin-bottom: 0.5rem;">
+                <h1 style="font-size: 2rem;">Courier Logistics Hub</h1>
+                <button class="tool-btn" style="background:var(--secondary-orange); border-color:var(--secondary-orange); color:white; padding: 6px 12px; font-size: 0.9rem;" onclick="openCourierSignupModal()">➕ Register Depot</button>
+              </div>
               <p style="color: var(--text-dark-secondary);">Matches buyer shipping instructions with verified M-PESA confirmations to fulfill dispatches.</p>
             </div>
             <span class="live-badge" style="background:var(--secondary-orange);">Logistics Active</span>
@@ -514,6 +518,81 @@
           <button class="stk-btn confirm" onclick="confirmSimulatedPayment()">Confirm</button>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- Seller Sign-Up Modal (Mobile Bottom-Sheet and Tablet Modal) -->
+  <div class="modal-backdrop" id="seller-signup-modal">
+    <div class="signup-modal bottom-sheet">
+      <div class="signup-header">
+        <h3 style="font-family: 'Outfit'; font-weight: 800; font-size: 1.4rem;">🛍️ Register Seller Shop</h3>
+        <button class="modal-close-btn" onclick="closeSellerSignupModal()">&times;</button>
+      </div>
+      <form id="seller-signup-form" onsubmit="registerNewSeller(event)" class="signup-body">
+        <div class="form-group">
+          <label for="reg-seller-name" style="color:var(--text-light-primary);">Shop Name</label>
+          <input type="text" id="reg-seller-name" class="form-input" placeholder="e.g. Ruiru Jeans Hub" required>
+        </div>
+        <div class="form-group">
+          <label for="reg-seller-short" style="color:var(--text-light-primary);">Short Name (Identifier)</label>
+          <input type="text" id="reg-seller-short" class="form-input" placeholder="e.g. Jeans" required>
+        </div>
+        <div class="form-group">
+          <label for="reg-seller-pochi" style="color:var(--text-light-primary);">M-PESA Pochi Phone Number</label>
+          <input type="tel" id="reg-seller-pochi" class="form-input" placeholder="e.g. 0712345678" pattern="^(07|01|254)\d{8}$" inputmode="tel" required>
+        </div>
+        <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div>
+            <label for="reg-seller-item" style="color:var(--text-light-primary);">Initial Product Name</label>
+            <input type="text" id="reg-seller-item" class="form-input" placeholder="e.g. Slim Jeans" required>
+          </div>
+          <div>
+            <label for="reg-seller-price" style="color:var(--text-light-primary);">Product Price (KES)</label>
+            <input type="number" id="reg-seller-price" class="form-input" placeholder="e.g. 1500" min="1" inputmode="decimal" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="reg-seller-avatar" style="color:var(--text-light-primary);">Select Icon Emoji</label>
+          <select id="reg-seller-avatar" class="form-select">
+            <option value="🛍️">🛍️ Shop Bag</option>
+            <option value="👗">👗 Fashion</option>
+            <option value="🛠️">🛠️ Spares</option>
+            <option value="💻">💻 Tech / Gadgets</option>
+            <option value="👟">👟 Shoes</option>
+            <option value="🍗">🍗 Food</option>
+          </select>
+        </div>
+        <button type="submit" class="cta-button" style="background:var(--primary-green); box-shadow: 0 4px 15px rgba(0, 176, 80, 0.3);">
+          ⚡ Register Shop Account
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Courier Sign-Up Modal (Mobile Bottom-Sheet and Tablet Modal) -->
+  <div class="modal-backdrop" id="courier-signup-modal">
+    <div class="signup-modal bottom-sheet">
+      <div class="signup-header">
+        <h3 style="font-family: 'Outfit'; font-weight: 800; font-size: 1.4rem;">🚚 Register Courier Depot</h3>
+        <button class="modal-close-btn" onclick="closeCourierSignupModal()">&times;</button>
+      </div>
+      <form id="courier-signup-form" onsubmit="registerNewCourier(event)" class="signup-body">
+        <div class="form-group">
+          <label for="reg-courier-name" style="color:var(--text-light-primary);">Hub Name (Pickup Office)</label>
+          <input type="text" id="reg-courier-name" class="form-input" placeholder="e.g. Garissa Main Depot" required>
+        </div>
+        <div class="form-group">
+          <label for="reg-courier-pochi" style="color:var(--text-light-primary);">Courier Pochi Phone Number</label>
+          <input type="tel" id="reg-courier-pochi" class="form-input" placeholder="e.g. 0722000008" pattern="^(07|01|254)\d{8}$" inputmode="tel" required>
+        </div>
+        <div class="form-group">
+          <label for="reg-courier-fee" style="color:var(--text-light-primary);">Standard Shipping Fee (KES)</label>
+          <input type="number" id="reg-courier-fee" class="form-input" placeholder="e.g. 350" min="1" inputmode="decimal" required>
+        </div>
+        <button type="submit" class="cta-button" style="background:var(--secondary-orange); box-shadow: 0 4px 15px rgba(255, 159, 28, 0.3);">
+          ⚡ Register Courier Hub
+        </button>
+      </form>
     </div>
   </div>
 
