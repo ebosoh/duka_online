@@ -1,6 +1,6 @@
 /**
- * DUKA ONLINE - CORE APPLICATION CONTROLLER (FLATTENED WITH FIREBASE SYNC)
- * Optimized for GitHub Pages & real-time Safaricom payout splits.
+ * DUKA ONLINE - CORE APPLICATION CONTROLLER (FLATTENED WITH FIREBASE SYNC & MULTI-TENANT ROUTING)
+ * Optimized for TikTok/FB Live shopping, Pochi la Biashara peer-to-peer transfers, and instant courier matching.
  */
 
 // ==========================================================================
@@ -9,13 +9,22 @@
 // Hudson: Replace the placeholder config below with your actual Firebase Web Config
 // keys from your Firebase Console (Project Settings > Web App).
 const firebaseConfig = {
-  apiKey: "",
-  authDomain: "",
-  projectId: "",
-  storageBucket: "",
-  messagingSenderId: "",
-  appId: ""
+  apiKey: "AIzaSyC0mY4xsh1miGiHQ3QfD7hPce-l_lLDOm0",
+  authDomain: "duka-online-154b7.firebaseapp.com",
+  projectId: "duka-online-154b7",
+  storageBucket: "duka-online-154b7.firebasestorage.app",
+  messagingSenderId: "838362381550",
+  appId: "1:838362381550:web:68cab39c90c1c3ef4c87ff",
+  measurementId: "G-EXBGB8Q71R"
 };
+
+// Registered Merchants (Dynamic Live Show Channels)
+const ACTIVE_SELLERS = [
+  { id: "seller-1", name: "Grogan Spares Zone", PochiPhone: "0722987654", shortName: "Grogan", avatar: "🛠️", initBid: "A01", initPrice: 3200 },
+  { id: "seller-2", name: "Amina Omondi Fashion", PochiPhone: "0722111111", shortName: "Amina", avatar: "👗", initBid: "B12", initPrice: 1800 },
+  { id: "seller-3", name: "Velo Nicotine Shop", PochiPhone: "0711555555", shortName: "Velo", avatar: "🚬", initBid: "V05", initPrice: 1200 },
+  { id: "seller-4", name: "TechBrain Gadgets Hub", PochiPhone: "0799000000", shortName: "Gadgets", avatar: "💻", initBid: "C09", initPrice: 4500 }
+];
 
 // Global State Variables
 let transactions = [];
@@ -25,8 +34,11 @@ let pendingSTKPush = null;
 let deferredInstallPrompt = null; 
 let db = null; // Firebase Firestore Reference
 let firestoreUnsubscribe = null; // Firestore listener teardown
+let selectedMerchantId = "seller-1"; // Active channel buyer is watching
+let activeSellerChannel = "0722987654"; // Pochi phone number of seller dashboard
+let streamInterval = null; // Comments interval
 
-const GA4_PROPERTY_ID = ""; // Paste GA4 ID here if available
+const GA4_PROPERTY_ID = "G-FS40Z82Q3E"; // Pre-saved GA4 ID
 
 // ==========================================================================
 // INITIALIZATION & LIFECYCLE
@@ -37,7 +49,9 @@ document.addEventListener("DOMContentLoaded", () => {
   initFirebase();
   loadData();
   setupEventListeners();
-  renderApp();
+  populateDropdowns();
+  switchRole("buyer"); // Default to buyer view
+  startLiveStreamSimulator();
 });
 
 // PWA & Service Worker registration
@@ -83,7 +97,6 @@ function trackEvent(eventName, eventParams = {}) {
 
 // Initialize Firebase Cloud Backend (with local fallback)
 function initFirebase() {
-  // Check if firebase is loaded and user has entered a config
   if (typeof firebase !== "undefined" && firebaseConfig.projectId) {
     try {
       firebase.initializeApp(firebaseConfig);
@@ -101,12 +114,6 @@ function initFirebase() {
 
 // Load seed data or subscribe to Firestore live sync
 function loadData() {
-  // Load products from seeds
-  if (typeof INITIAL_PRODUCTS !== "undefined") {
-    products = INITIAL_PRODUCTS;
-  }
-
-  // Subscribe to real-time updates if Firebase is configured
   if (db) {
     if (firestoreUnsubscribe) firestoreUnsubscribe();
     
@@ -114,11 +121,21 @@ function loadData() {
     firestoreUnsubscribe = db.collection("transactions")
       .orderBy("timestamp", "desc")
       .onSnapshot((snapshot) => {
+        let oldLength = transactions.length;
         transactions = [];
         snapshot.forEach((doc) => {
           transactions.push({ firestoreId: doc.id, ...doc.data() });
         });
         console.log(`[Firebase Backend] Received ${transactions.length} sync logs.`);
+        
+        // Trigger live audio/visual banner alert for new matched transaction belonging to active channel
+        if (transactions.length > oldLength && oldLength > 0) {
+          const latest = transactions[0];
+          if (latest.matched && (latest.merchantPhone === activeSellerChannel)) {
+            triggerFomoNotification(latest);
+          }
+        }
+        
         renderApp();
       }, (error) => {
         console.error("[Firebase Backend] Real-time sync error:", error);
@@ -135,7 +152,16 @@ function loadLocalFallback() {
   if (storedTxns) {
     transactions = JSON.parse(storedTxns);
   } else if (typeof INITIAL_TRANSACTIONS !== "undefined") {
-    transactions = INITIAL_TRANSACTIONS;
+    transactions = INITIAL_TRANSACTIONS.map((txn) => {
+      // Update seed data structure to match new dynamic merchants
+      const seedSeller = ACTIVE_SELLERS[0];
+      return {
+        ...txn,
+        merchantId: seedSeller.id,
+        merchantName: seedSeller.name,
+        merchantPhone: seedSeller.PochiPhone
+      };
+    });
     saveLocalFallback();
   }
 }
@@ -144,28 +170,56 @@ function saveLocalFallback() {
   localStorage.setItem("duka_transactions", JSON.stringify(transactions));
 }
 
+// Populate Seller list dropdowns
+function populateDropdowns() {
+  // Populate Buyer Checkout Seller Selector
+  const buyerSellerSelect = document.getElementById("checkout-live-seller");
+  if (buyerSellerSelect) {
+    buyerSellerSelect.innerHTML = "";
+    ACTIVE_SELLERS.forEach((seller) => {
+      const option = document.createElement("option");
+      option.value = seller.id;
+      option.textContent = `${seller.name} (${seller.avatar})`;
+      buyerSellerSelect.appendChild(option);
+    });
+  }
+
+  // Populate Seller Channel Filter Selector
+  const sellerChannelSelector = document.getElementById("seller-channel-selector");
+  if (sellerChannelSelector) {
+    sellerChannelSelector.innerHTML = "";
+    ACTIVE_SELLERS.forEach((seller) => {
+      const option = document.createElement("option");
+      option.value = seller.PochiPhone;
+      option.textContent = `${seller.name} (${seller.PochiPhone})`;
+      sellerChannelSelector.appendChild(option);
+    });
+  }
+
+  // Populate Collection Points
+  const collectionSelect = document.getElementById("checkout-collection-point");
+  if (collectionSelect && collectionSelect.options.length <= 1) {
+    COLLECTION_POINTS.forEach((hub) => {
+      const option = document.createElement("option");
+      option.value = hub.id;
+      option.textContent = `${hub.name} (+ KES ${hub.fee})`;
+      collectionSelect.appendChild(option);
+    });
+  }
+}
+
 // ==========================================================================
 // VIEWS ROUTER & ROLE SWITCHER
 // ==========================================================================
 function switchRole(role) {
   currentRole = role;
   
-  // Update Navigation Active State
   document.querySelectorAll(".nav-btn").forEach((btn) => {
-    if (btn.dataset.role === role) {
-      btn.classList.add("active");
-    } else {
-      btn.classList.remove("active");
-    }
+    btn.classList.toggle("active", btn.dataset.role === role);
   });
 
-  // Switch View Panels
   document.querySelectorAll(".view-panel").forEach((panel) => {
-    if (panel.id === `${role}-view`) {
-      panel.classList.add("active");
-    } else {
-      panel.classList.remove("active");
-    }
+    panel.classList.toggle("active", panel.id === `${role}-view`);
   });
 
   trackEvent("role_view_changed", { role: role });
@@ -191,93 +245,98 @@ function renderApp() {
 }
 
 // ==========================================================================
-// BUYER EXPRESS CHECKOUT
+// BUYER LIVE CHECKOUT FLOW (Direct Pochi Routing)
 // ==========================================================================
 function renderBuyerPortal() {
-  const productShowcase = document.getElementById("buyer-product-showcase");
-  if (!productShowcase) return;
+  const sellerSelect = document.getElementById("checkout-live-seller");
+  if (!sellerSelect) return;
 
-  const activeProduct = products[0]; 
+  const seller = ACTIVE_SELLERS.find((s) => s.id === sellerSelect.value) || ACTIVE_SELLERS[0];
   
-  productShowcase.innerHTML = `
-    <div class="product-showcase">
-      <div class="product-img-container">
-        <img src="${activeProduct.image}" alt="${activeProduct.name}">
-      </div>
-      <div class="product-details">
-        <div>
-          <span class="live-badge">Live Auction Active</span>
-          <h2 class="product-title">${activeProduct.name}</h2>
-          <div class="product-live-tag">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 9H3V5h9v7zm9 7h-9v-7h9v7zm0-9h-9V5h9v5z"/></svg>
-            Auction Bid Code: <strong style="font-size:1.15rem; color:var(--secondary-orange);">${activeProduct.liveCode}</strong>
-          </div>
-          <p style="margin-bottom:0.75rem;">Instant buyout for live viewers. Match your pay immediately to secure shipping.</p>
-        </div>
-        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-          <div class="product-price-tag">KES ${activeProduct.price.toLocaleString()}</div>
-          <span class="product-stock">Only ${activeProduct.stock} Left in Stock</span>
-        </div>
-      </div>
-    </div>
-  `;
+  // Update Live stream UI overlays
+  const streamerAvatar = document.getElementById("streamer-avatar-tag");
+  const streamerName = document.getElementById("streamer-name-tag");
+  const streamDesc = document.getElementById("stream-item-desc");
 
-  const collectionSelect = document.getElementById("checkout-collection-point");
-  if (collectionSelect && collectionSelect.options.length <= 1) {
-    COLLECTION_POINTS.forEach((hub) => {
-      const option = document.createElement("option");
-      option.value = hub.id;
-      option.textContent = `${hub.name} (+ KES ${hub.fee})`;
-      collectionSelect.appendChild(option);
-    });
+  if (streamerAvatar) streamerAvatar.textContent = seller.avatar;
+  if (streamerName) streamerName.textContent = seller.name;
+  if (streamDesc) {
+    streamDesc.innerHTML = `Watching Live. Bid item and pay directly to **${seller.name}** Pochi Account. Current item bidding code is <strong style="color:var(--secondary-orange); font-size:1.1rem;">${seller.initBid}</strong> (KES ${seller.initPrice.toLocaleString()}).`;
   }
+}
 
-  updateCheckoutPricing();
+function handleCheckoutSellerChange() {
+  const sellerSelect = document.getElementById("checkout-live-seller");
+  if (!sellerSelect) return;
+
+  const seller = ACTIVE_SELLERS.find((s) => s.id === sellerSelect.value);
+  if (seller) {
+    // Autopopulate Bid Code and Price with seller's active demo values
+    document.getElementById("buyer-form-bid-code").value = seller.initBid;
+    document.getElementById("buyer-form-bid-price").value = seller.initPrice;
+    
+    // Clear and start fresh stream mockup comments
+    document.getElementById("stream-comment-feed").innerHTML = "";
+    showToast(`Switched Live Stream to: ${seller.name}`, "success");
+    
+    renderBuyerPortal();
+    updateCheckoutPricing();
+  }
 }
 
 function updateCheckoutPricing() {
+  const bidPriceInput = document.getElementById("buyer-form-bid-price");
   const collectionSelect = document.getElementById("checkout-collection-point");
-  if (!collectionSelect) return;
+  
+  if (!bidPriceInput || !collectionSelect) return;
 
-  const activeProduct = products[0];
+  const bidPrice = parseFloat(bidPriceInput.value) || 0;
   const selectedHubId = collectionSelect.value;
   const hub = COLLECTION_POINTS.find((h) => h.id === selectedHubId);
   const deliveryFee = hub ? hub.fee : 0;
-  const totalPrice = activeProduct.price + deliveryFee;
+  const totalPrice = bidPrice + deliveryFee;
 
-  document.getElementById("breakdown-prod-price").textContent = `KES ${activeProduct.price.toLocaleString()}`;
+  document.getElementById("breakdown-prod-price").textContent = `KES ${bidPrice.toLocaleString()}`;
   document.getElementById("breakdown-delivery-fee").textContent = `KES ${deliveryFee.toLocaleString()}`;
   document.getElementById("breakdown-total-price").textContent = `KES ${totalPrice.toLocaleString()}`;
 }
 
+// Trigger STK push prompt for buyer
 function triggerBuyerCheckout(event) {
   event.preventDefault();
   
   const name = document.getElementById("buyer-form-name").value.trim();
   const contact = document.getElementById("buyer-form-contact").value.trim();
+  const sellerSelect = document.getElementById("checkout-live-seller");
+  const bidCode = document.getElementById("buyer-form-bid-code").value.trim().toUpperCase();
+  const bidPrice = parseFloat(document.getElementById("buyer-form-bid-price").value) || 0;
   const hubId = document.getElementById("checkout-collection-point").value;
 
-  if (!name || !contact || !hubId) {
-    showToast("Please fill in all checkout details!", "error");
+  if (!name || !contact || !sellerSelect.value || !bidCode || bidPrice <= 0 || !hubId) {
+    showToast("Please fill in all Checkout details!", "error");
     return;
   }
 
-  const activeProduct = products[0];
+  const seller = ACTIVE_SELLERS.find((s) => s.id === sellerSelect.value);
   const hub = COLLECTION_POINTS.find((h) => h.id === hubId);
   
   pendingSTKPush = {
     buyerName: name,
     buyerContact: contact,
-    collectionPoint: hub.name,
-    productName: activeProduct.name,
-    productId: activeProduct.id,
-    productPrice: activeProduct.price,
+    merchantId: seller.id,
+    merchantName: seller.name,
+    merchantPhone: seller.PochiPhone,
+    productName: `Bid Code: ${bidCode}`,
+    productId: bidCode,
+    productPrice: bidPrice,
     deliveryFee: hub.fee,
-    totalPaid: activeProduct.price + hub.fee
+    totalPaid: bidPrice + hub.fee,
+    collectionPoint: hub.name
   };
 
   trackEvent("checkout_stk_initiated", {
-    productName: activeProduct.name,
+    sellerName: seller.name,
+    bidCode: bidCode,
     totalAmount: pendingSTKPush.totalPaid
   });
 
@@ -285,16 +344,17 @@ function triggerBuyerCheckout(event) {
   const modalPromptText = document.getElementById("stk-prompt-text");
   
   if (modal && modalPromptText) {
-    modalPromptText.innerHTML = `Do you want to pay <strong>KES ${pendingSTKPush.totalPaid.toLocaleString()}</strong> to <strong>Duka Online</strong>? <br><br>Enter your M-PESA PIN below to confirm payment:`;
+    modalPromptText.innerHTML = `Do you want to pay <strong>KES ${pendingSTKPush.totalPaid.toLocaleString()}</strong> directly to <strong>Pochi la Biashara ${seller.name} (${seller.PochiPhone})</strong>? <br><br>Enter your M-PESA PIN below to confirm payment:`;
     document.getElementById("stk-pin-field").value = "";
     modal.classList.add("active");
   }
 }
 
+// Confirm checkout
 function confirmSimulatedPayment() {
   const pinField = document.getElementById("stk-pin-field");
   if (!pinField || pinField.value.length < 4) {
-    showToast("Please enter a 4-digit M-PESA PIN!", "error");
+    showToast("Please enter a valid 4-digit M-PESA PIN!", "error");
     return;
   }
 
@@ -308,23 +368,27 @@ function confirmSimulatedPayment() {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     let code = "QR" + Array.from({length: 8}, () => chars[Math.floor(Math.random() * chars.length)]).join("");
     
-    // Choose Courier partner till
-    const randomCourier = COURIER_PROVIDERS[Math.floor(Math.random() * COURIER_PROVIDERS.length)];
-    
-    const simulatedSMS = `${code} Confirmed. Ksh${buyerData.totalPaid.toLocaleString()}.00 paid to Duka Online on ${new Date().toLocaleDateString("en-KE")} at ${new Date().toLocaleTimeString("en-KE", { hour: "numeric", minute: "2-digit" })}. New M-PESA balance is Ksh154,200.00. Transaction cost Ksh0.00.`;
+    // Formulate a beautiful, highly realistic Pochi la Biashara raw SMS layout
+    // Safaricom routes funds peer-to-peer into the Pochi account of the merchant
+    const simulatedSMS = `${code} Confirmed. Ksh${buyerData.totalPaid.toLocaleString()}.00 sent to Pochi la Biashara ${buyerData.merchantName.toUpperCase()} ${buyerData.merchantPhone} on ${new Date().toLocaleDateString("en-KE")} at ${new Date().toLocaleTimeString("en-KE", { hour: "numeric", minute: "2-digit" })}. New M-PESA balance is Ksh154,200.00. Transaction cost Ksh0.00.`;
 
     const parsedSMS = MpesaParser.parseSMS(simulatedSMS);
     
     if (parsedSMS) {
       const mergedTxn = MpesaParser.mergeTransaction(parsedSMS, buyerData);
       
-      // Save Transaction to cloud database or local fallback
+      // Inject merchant IDs for correct dashboard routing
+      mergedTxn.merchantId = buyerData.merchantId;
+      mergedTxn.merchantName = buyerData.merchantName;
+      mergedTxn.merchantPhone = buyerData.merchantPhone;
+
+      // Save to Firebase Cloud Firestore or fallback
       if (db) {
         db.collection("transactions").add(mergedTxn)
           .then((docRef) => {
             console.log("[Firebase] Transaction uploaded:", docRef.id);
             showToast(`Payment Approved! Ref: ${code}`, "success");
-            showToast(`SMS Extracted & Auto-Merged with ${buyerData.collectionPoint} Delivery.`, "courier");
+            showToast(`SMS Auto-Merged with ${buyerData.collectionPoint} Destination.`, "courier");
           })
           .catch((err) => {
             console.error("[Firebase] Upload failed, falling back:", err);
@@ -335,9 +399,15 @@ function confirmSimulatedPayment() {
       } else {
         transactions.unshift(mergedTxn);
         saveLocalFallback();
+        
+        // Manual local notification flash
+        if (mergedTxn.merchantPhone === activeSellerChannel) {
+          triggerFomoNotification(mergedTxn);
+        }
+        
         renderApp();
         showToast(`Payment Approved! Ref: ${code}`, "success");
-        showToast(`SMS Extracted & Auto-Merged with ${buyerData.collectionPoint} Delivery.`, "courier");
+        showToast(`SMS Auto-Merged with ${buyerData.collectionPoint} Destination.`, "courier");
       }
 
       // Pre-fill text area automatically for presentation
@@ -349,9 +419,10 @@ function confirmSimulatedPayment() {
       trackEvent("payment_completed", {
         transactionId: mergedTxn.id,
         amount: mergedTxn.totalPaid,
-        buyer: mergedTxn.buyerName
+        seller: buyerData.merchantName
       });
 
+      // Clear forms
       document.getElementById("buyer-form-name").value = "";
       document.getElementById("buyer-form-contact").value = "";
       document.getElementById("checkout-collection-point").selectedIndex = 0;
@@ -362,21 +433,28 @@ function confirmSimulatedPayment() {
   }, 1200);
 }
 
-function cancelSimulatedPayment() {
-  document.getElementById("stk-push-modal").classList.remove("active");
-  showToast("M-PESA STK Push cancelled.", "error");
-  pendingSTKPush = null;
+// ==========================================================================
+// SELLER MULTI-MERCHANT DASHBOARD
+// ==========================================================================
+function handleSellerChannelChange() {
+  const sellerChannelSelector = document.getElementById("seller-channel-selector");
+  if (sellerChannelSelector) {
+    activeSellerChannel = sellerChannelSelector.value;
+    const seller = ACTIVE_SELLERS.find(s => s.PochiPhone === activeSellerChannel);
+    showToast(`Switched active matching channel to: ${seller.name}`, "success");
+    renderSellerDashboard();
+  }
 }
 
-// ==========================================================================
-// SELLER DASHBOARD
-// ==========================================================================
 function renderSellerDashboard() {
+  // Filter transactions belonging ONLY to this specific merchant channel
+  const merchantTxns = transactions.filter((t) => t.merchantPhone === activeSellerChannel);
+
   let totalProductSales = 0;
   let totalPlatformFees = 0;
   let totalCourierEarnings = 0;
 
-  transactions.forEach((t) => {
+  merchantTxns.forEach((t) => {
     if (t.matched) {
       totalProductSales += t.productAmountPaid;
       totalPlatformFees += t.splitPlatform;
@@ -397,12 +475,12 @@ function renderSellerDashboard() {
 
   tableBody.innerHTML = "";
 
-  if (transactions.length === 0) {
-    tableBody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--text-dark-secondary);">No transactions captured yet. Live show is waiting...</td></tr>`;
+  if (merchantTxns.length === 0) {
+    tableBody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--text-dark-secondary);">No payments matched for this channel yet. Stream live and ask buyers to checkout!</td></tr>`;
     return;
   }
 
-  transactions.forEach((txn) => {
+  merchantTxns.forEach((txn) => {
     tableBody.innerHTML += `
       <tr>
         <td><strong style="color:#FFF;">${txn.mpesaCode || "PENDING"}</strong></td>
@@ -410,11 +488,15 @@ function renderSellerDashboard() {
           <div style="font-weight: 600;">${txn.buyerName}</div>
           <div style="font-size: 0.75rem; color: var(--text-dark-secondary);">${txn.buyerContact}</div>
         </td>
+        <td>
+          <div style="font-weight: 700; color:var(--secondary-orange);">${txn.productName}</div>
+          <div style="font-size: 0.75rem; color: var(--text-dark-secondary);">Product: KES ${txn.productAmountPaid.toLocaleString()}</div>
+        </td>
         <td><span style="font-family: 'Outfit'; font-weight:700;">KES ${txn.totalPaid.toLocaleString()}</span></td>
         <td>
           <div style="font-size: 0.8rem; font-weight:600; color: var(--primary-green);">Seller: KES ${txn.productAmountPaid.toLocaleString()}</div>
-          <div style="font-size: 0.75rem; color: var(--text-dark-secondary);">Courier Partner: KES ${txn.splitCourier.toLocaleString()}</div>
-          <div style="font-size: 0.75rem; color: var(--accent-red);">App Platform: KES ${txn.splitPlatform.toLocaleString()}</div>
+          <div style="font-size: 0.75rem; color: var(--text-dark-secondary);">Courier Split (50%): KES ${txn.splitCourier.toLocaleString()}</div>
+          <div style="font-size: 0.75rem; color: var(--accent-red);">Platform Split (50%): KES ${txn.splitPlatform.toLocaleString()}</div>
         </td>
         <td>
           <span style="font-size:0.8rem; font-weight:500;">${txn.collectionPoint}</span>
@@ -438,6 +520,38 @@ function renderSellerDashboard() {
   });
 }
 
+// Trigger sound and FOMO notification banner on dashboard
+function triggerFomoNotification(txn) {
+  const banner = document.getElementById("payout-banner");
+  const bannerText = document.getElementById("payout-banner-text");
+  
+  if (banner && bannerText) {
+    bannerText.innerHTML = `💰 <strong>${txn.mpesaCode} Matched!</strong> ${txn.buyerName} paid KES ${txn.productAmountPaid.toLocaleString()} for ${txn.productName} (${txn.collectionPoint} hub).`;
+    banner.classList.add("active");
+
+    // Play a gentle ping sound using web audio API to alert the streamer
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // A5 note
+      gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+      
+      oscillator.start();
+      oscillator.stop(audioCtx.currentTime + 0.4);
+    } catch (e) {
+      console.log("Audio alert blocked by browser autoplay settings.");
+    }
+  }
+}
+
+// Manual SMS Parser
 function handleManualSMSParse() {
   const smsInputField = document.getElementById("sms-input-field");
   if (!smsInputField) return;
@@ -454,9 +568,17 @@ function handleManualSMSParse() {
     return;
   }
 
+  // Double check if the SMS specifies a phone that belongs to a registered seller
+  let matchedSeller = ACTIVE_SELLERS.find(s => smsText.includes(s.PochiPhone) || smsText.toUpperCase().includes(s.name.toUpperCase()) || smsText.toUpperCase().includes(s.shortName.toUpperCase()));
+  if (!matchedSeller) {
+    // Default to currently active channel
+    matchedSeller = ACTIVE_SELLERS.find(s => s.PochiPhone === activeSellerChannel);
+  }
+
   // Look for a pending unmatched transaction in local cache
   const pendingMatch = transactions.find((t) => 
     !t.matched && 
+    t.merchantPhone === matchedSeller.PochiPhone &&
     (t.buyerName.toUpperCase().includes(parsed.mpesaSender.toUpperCase()) || 
      parsed.mpesaSender.toUpperCase().includes(t.buyerName.toUpperCase()) ||
      t.buyerContact.includes(parsed.mpesaPhone.substring(parsed.mpesaPhone.length - 9)))
@@ -483,39 +605,99 @@ function handleManualSMSParse() {
 
     if (db && pendingMatch.firestoreId) {
       db.collection("transactions").doc(pendingMatch.firestoreId).update(updateData)
-        .then(() => showToast(`Payment Merged! Matched with pending Buyer: ${pendingMatch.buyerName}`, "success"))
-        .catch((err) => console.error("[Firebase] Merge failed, falling back:", err));
+        .then(() => {
+          showToast(`Merged: Matched with pending Buyer ${pendingMatch.buyerName}!`, "success");
+        })
+        .catch((err) => console.error("[Firebase] Merge failed:", err));
     } else {
       Object.assign(pendingMatch, updateData);
       saveLocalFallback();
+      
+      if (pendingMatch.merchantPhone === activeSellerChannel) {
+        triggerFomoNotification(pendingMatch);
+      }
+      
       renderApp();
-      showToast(`Payment Merged! Matched with pending Buyer: ${pendingMatch.buyerName}`, "success");
+      showToast(`Merged: Matched with pending Buyer ${pendingMatch.buyerName}!`, "success");
     }
   } else {
-    // Generic direct matching
+    // Generic direct matching from SMS
     const mockBuyerForm = {
       buyerName: parsed.mpesaSender,
       buyerContact: parsed.mpesaPhone,
       collectionPoint: "Nairobi CBD Pick-up Centre",
-      productName: "Direct Sale (Auction Item)",
-      productPrice: Math.round(parsed.amountPaid * 0.85)
+      productName: "Direct Sale (Bid Code: A01)",
+      productPrice: Math.round(parsed.amountPaid * 0.85),
+      merchantId: matchedSeller.id,
+      merchantName: matchedSeller.name,
+      merchantPhone: matchedSeller.PochiPhone
     };
 
     const newTxn = MpesaParser.mergeTransaction(parsed, mockBuyerForm);
+    newTxn.merchantId = matchedSeller.id;
+    newTxn.merchantName = matchedSeller.name;
+    newTxn.merchantPhone = matchedSeller.PochiPhone;
     
     if (db) {
       db.collection("transactions").add(newTxn)
-        .then(() => showToast(`Direct SMS Processed! Extracted Buyer: ${parsed.mpesaSender}`, "success"))
+        .then(() => showToast(`Direct SMS Processed for ${matchedSeller.name}!`, "success"))
         .catch((err) => console.error("[Firebase] Direct add failed:", err));
     } else {
       transactions.unshift(newTxn);
       saveLocalFallback();
+      
+      if (newTxn.merchantPhone === activeSellerChannel) {
+        triggerFomoNotification(newTxn);
+      }
+      
       renderApp();
-      showToast(`Direct SMS Processed! Extracted Buyer: ${parsed.mpesaSender}`, "success");
+      showToast(`Direct SMS Processed for ${matchedSeller.name}!`, "success");
     }
   }
 
   smsInputField.value = "";
+}
+
+// Simulate an incoming buyer order live
+function simulateLiveBuyerPurchase() {
+  const seller = ACTIVE_SELLERS.find(s => s.PochiPhone === activeSellerChannel);
+  
+  const sampleNames = ["Joseph Ndwiga", "Mercy Chepngetich", "Silas Kamau", "Teresia Wambui", "Hassan Omar"];
+  const sampleContacts = ["0712883921", "0722883910", "0701889922", "0745812920", "0733891024"];
+  const sampleHubs = COLLECTION_POINTS;
+
+  const randName = sampleNames[Math.floor(Math.random() * sampleNames.length)];
+  const randContact = sampleContacts[Math.floor(Math.random() * sampleContacts.length)];
+  const randHub = sampleHubs[Math.floor(Math.random() * sampleHubs.length)];
+
+  const mockOrder = {
+    buyerName: randName,
+    buyerContact: randContact,
+    merchantId: seller.id,
+    merchantName: seller.name,
+    merchantPhone: seller.PochiPhone,
+    productName: `Bid Code: ${seller.initBid}`,
+    productId: seller.initBid,
+    productPrice: seller.initPrice,
+    deliveryFee: randHub.fee,
+    totalPaid: seller.initPrice + randHub.fee,
+    collectionPoint: randHub.name,
+    timestamp: new Date().toISOString(),
+    mpesaCode: null,
+    matched: false,
+    status: "Pending Payment"
+  };
+
+  if (db) {
+    db.collection("transactions").add(mockOrder)
+      .then(() => showToast(`Simulated Live Order placed by ${randName} for item ${seller.initBid}!`, "success"))
+      .catch((err) => console.error("[Firebase] Mock order failed:", err));
+  } else {
+    transactions.unshift(mockOrder);
+    saveLocalFallback();
+    renderApp();
+    showToast(`Simulated Live Order placed by ${randName} for item ${seller.initBid}!`, "success");
+  }
 }
 
 // ==========================================================================
@@ -582,7 +764,6 @@ function getStatusClass(status) {
   }
 }
 
-// Update state on Cloud or Local Storage
 function updateTransactionStatus(id, newStatus) {
   const isFirestoreDocId = (db && transactions.some(t => t.firestoreId === id));
   
@@ -591,7 +772,6 @@ function updateTransactionStatus(id, newStatus) {
       .then(() => showToast(`Status updated: ${newStatus}`, "success"))
       .catch((err) => console.error("[Firebase] Status update failed:", err));
   } else {
-    // Local fallback search
     const txn = transactions.find((t) => t.id === id || t.firestoreId === id);
     if (txn) {
       txn.status = newStatus;
@@ -643,6 +823,64 @@ function triggerReportPrint(timeframe) {
 
   document.body.prepend(printHeaderDiv);
   window.print();
+}
+
+// ==========================================================================
+// LIVE COMMENT SIMULATOR FOR TIKTOK MOCKUP VIEW
+// ==========================================================================
+function startLiveStreamSimulator() {
+  if (streamInterval) clearInterval(streamInterval);
+
+  const comments = [
+    "Mine! Code A01!",
+    "Wells Fargo Eldorado branch has fast delivery",
+    "Sending my PIN now",
+    "Pochi la Biashara credits instantly",
+    "Joy W: Just paid KES 3,200!",
+    "B12 look so nice",
+    "Velo nicotine pouches available?",
+    "Is Kisumu Lakeside depot secure?",
+    "Just secured code E09!",
+    "Grogan spares brake pads are durable",
+    "Confirming Eldoret Main Hub delivery details"
+  ];
+
+  const commentFeed = document.getElementById("stream-comment-feed");
+  if (!commentFeed) return;
+
+  streamInterval = setInterval(() => {
+    const randComment = comments[Math.floor(Math.random() * comments.length)];
+    const randUser = ["Amina O.", "Silas K.", "Kiprop", "Wanjiku G.", "Omondi", "Kamau"][Math.floor(Math.random() * 6)];
+    
+    const commentItem = document.createElement("div");
+    commentItem.className = "comment-item";
+    commentItem.innerHTML = `💬 <strong>${randUser}</strong>: ${randComment}`;
+    
+    commentFeed.appendChild(commentItem);
+    
+    // Auto-scroll comments up
+    if (commentFeed.children.length > 3) {
+      commentFeed.children[0].remove();
+    }
+  }, 3500);
+}
+
+function toggleStreamSimulation() {
+  const playBtn = document.getElementById("stream-play-btn");
+  const audience = document.getElementById("live-audience-num");
+  
+  if (playBtn) {
+    if (playBtn.textContent === "▶") {
+      playBtn.textContent = "⏸";
+      playBtn.style.opacity = "0.3";
+      showToast("TikTok Live Stream Simulation playing...", "success");
+      if (audience) audience.textContent = `${Math.floor(1000 + Math.random() * 2000)} watching`;
+    } else {
+      playBtn.textContent = "▶";
+      playBtn.style.opacity = "1";
+      showToast("Simulation paused.", "error");
+    }
+  }
 }
 
 // ==========================================================================

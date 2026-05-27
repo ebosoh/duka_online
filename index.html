@@ -16,6 +16,137 @@
   
   <!-- CSS Design System Stylesheet (Root Collapsed) -->
   <link rel="stylesheet" href="styles.css">
+  
+  <style>
+    /* Live Video Mockup Frame in Buyer View */
+    .live-stream-placeholder {
+      position: relative;
+      background: #000;
+      border-radius: var(--border-radius-lg);
+      overflow: hidden;
+      aspect-ratio: 16/9;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      border: 1px solid var(--border-light);
+      box-shadow: var(--shadow-light);
+      color: #FFF;
+    }
+    
+    .live-stream-overlay-top {
+      padding: 15px;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.8), rgba(0,0,0,0));
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 5;
+    }
+    
+    .live-stream-overlay-bottom {
+      padding: 20px;
+      background: linear-gradient(to top, rgba(0,0,0,0.9), rgba(0,0,0,0));
+      z-index: 5;
+    }
+    
+    .streamer-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .streamer-avatar {
+      width: 32px;
+      height: 32px;
+      background: var(--primary-green);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.85rem;
+    }
+    
+    .live-audience-counter {
+      background: rgba(0,0,0,0.6);
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    
+    .comment-feed {
+      max-height: 80px;
+      overflow-y: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 0.8rem;
+      margin-top: 10px;
+    }
+    
+    .comment-item {
+      background: rgba(255,255,255,0.15);
+      backdrop-filter: blur(5px);
+      padding: 4px 10px;
+      border-radius: 20px;
+      width: fit-content;
+    }
+    
+    .stream-play-btn {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 60px;
+      height: 60px;
+      background: rgba(255, 159, 28, 0.9);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 1.8rem;
+      color: white;
+      box-shadow: 0 0 20px rgba(255, 159, 28, 0.5);
+      border: none;
+      transition: var(--transition-fast);
+      z-index: 10;
+    }
+    
+    .stream-play-btn:hover {
+      background: var(--secondary-orange-hover);
+      transform: translate(-50%, -50%) scale(1.08);
+    }
+    
+    /* Live sound flashing banner */
+    .fomo-payout-banner {
+      background: linear-gradient(90deg, rgba(0, 176, 80, 0.2), rgba(255, 159, 28, 0.2));
+      border: 1px solid var(--primary-green);
+      border-radius: var(--border-radius-md);
+      padding: 12px 20px;
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.5rem;
+      animation: slideUp 0.35s ease;
+    }
+    
+    .fomo-payout-banner.active {
+      display: flex;
+    }
+    
+    .fomo-payout-text {
+      font-weight: 700;
+      color: #FFF;
+      font-size: 0.95rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+  </style>
 </head>
 <body>
 
@@ -70,10 +201,37 @@
       <section id="buyer-view" class="view-panel active">
         <div class="buyer-grid">
           
-          <!-- Product showcase & catalog details -->
+          <!-- Mock live broadcast showcase -->
           <div>
-            <div class="auction-card" id="buyer-product-showcase">
-              <!-- Rendered Dynamically via JS -->
+            <div class="live-stream-placeholder" id="buyer-stream-frame">
+              <button class="stream-play-btn" id="stream-play-btn" onclick="toggleStreamSimulation()">▶</button>
+              
+              <div class="live-stream-overlay-top">
+                <div class="streamer-badge">
+                  <div class="streamer-avatar" id="streamer-avatar-tag">S</div>
+                  <div>
+                    <h4 style="font-size:0.9rem;" id="streamer-name-tag">Seller Live Stream</h4>
+                    <span style="font-size:0.7rem; color:rgba(255,255,255,0.7);">Streaming Live</span>
+                  </div>
+                </div>
+                
+                <div class="live-audience-counter">
+                  <span style="width:6px; height:6px; background:#D90429; border-radius:50%;"></span>
+                  <span id="live-audience-num">1.4K watching</span>
+                </div>
+              </div>
+              
+              <div class="live-stream-overlay-bottom">
+                <div style="background: rgba(0,0,0,0.5); padding: 10px; border-radius:8px;">
+                  <span class="live-badge" style="margin-bottom:5px;">Live Broadcast Show</span>
+                  <h3 style="font-size:1.15rem; margin-bottom:5px;" id="stream-item-desc">Watch live, identify your desired product code, type it below to pay peer-to-peer!</h3>
+                </div>
+                
+                <div class="comment-feed" id="stream-comment-feed">
+                  <div class="comment-item">💬 <strong>Joy W.</strong>: Mine! Code A01!</div>
+                  <div class="comment-item">💬 <strong>Mbugua</strong>: Eldorado shipping is fast!</div>
+                </div>
+              </div>
             </div>
             
             <!-- Space 2: In-Feed Native Card Ad (Space 2 - Buyer Portal) -->
@@ -92,11 +250,30 @@
           
           <!-- Checkout Contact & Dispatch Information Form -->
           <div class="checkout-form-card">
-            <h2 style="font-size: 1.5rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 8px;">
-              ⚡ Express Live Checkout
+            <h2 style="font-size: 1.5rem; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 8px;">
+              ⚡ Live Channel Pay Point
             </h2>
             
             <form id="buyer-checkout-form" onsubmit="triggerBuyerCheckout(event)">
+              
+              <div class="form-group">
+                <label for="checkout-live-seller">Select TikTok / FB Seller Channel</label>
+                <select id="checkout-live-seller" class="form-select" onchange="handleCheckoutSellerChange()" required>
+                  <!-- Populate dynamically from COURIER_PROVIDERS / merchants -->
+                </select>
+              </div>
+              
+              <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div>
+                  <label for="buyer-form-bid-code">Item Bid Code (e.g. A01)</label>
+                  <input type="text" id="buyer-form-bid-code" class="form-input" placeholder="e.g. A01" style="text-transform: uppercase;" required>
+                </div>
+                <div>
+                  <label for="buyer-form-bid-price">Agreed Product Price (KES)</label>
+                  <input type="number" id="buyer-form-bid-price" class="form-input" placeholder="e.g. 3200" oninput="updateCheckoutPricing()" required>
+                </div>
+              </div>
+              
               <div class="form-group">
                 <label for="buyer-form-name">Your Full Name (As per M-PESA ID)</label>
                 <input type="text" id="buyer-form-name" class="form-input" placeholder="e.g. Michael Kiprop" required>
@@ -104,12 +281,12 @@
               
               <div class="form-group">
                 <label for="buyer-form-contact">Your M-PESA Phone Number</label>
-                <input type="tel" id="buyer-form-contact" class="form-input" placeholder="e.g. 0712345678 or 2547..." required>
+                <input type="tel" id="buyer-form-contact" class="form-input" placeholder="e.g. 0712345678" required>
               </div>
               
               <div class="form-group">
                 <label for="checkout-collection-point">Select Courier Collection Point</label>
-                <select id="checkout-collection-point" class="form-select" required>
+                <select id="checkout-collection-point" class="form-select" onchange="updateCheckoutPricing()" required>
                   <option value="" disabled selected>-- Choose Pickup Hub --</option>
                   <!-- Populate dynamically from COLLECTION_POINTS -->
                 </select>
@@ -149,9 +326,22 @@
       <section id="seller-view" class="view-panel">
         <div class="dashboard-container">
           
+          <!-- Live sound alert banner -->
+          <div class="fomo-payout-banner" id="payout-banner">
+            <div class="fomo-payout-text">
+              🔔 <span id="payout-banner-text">QRE58KJS6F Matched! KES 3,200 product sale secured.</span>
+            </div>
+            <button style="background:transparent; border:none; color:white; font-weight:700; cursor:pointer;" onclick="document.getElementById('payout-banner').classList.remove('active')">&times;</button>
+          </div>
+
           <div class="dash-header">
             <div>
-              <h1 style="font-size: 2rem;">Seller Live Control Panel</h1>
+              <div style="display:flex; align-items:center; gap: 15px; flex-wrap:wrap; margin-bottom: 0.5rem;">
+                <h1 style="font-size: 2rem;">Seller Live Control Panel</h1>
+                <select id="seller-channel-selector" class="action-dropdown" style="font-size: 1.1rem; padding: 6px 15px; border-color: var(--primary-green); height: auto;" onchange="handleSellerChannelChange()">
+                  <!-- Populate dynamically -->
+                </select>
+              </div>
               <p style="color: var(--text-dark-secondary);">Real-time M-PESA message matching, platform split tracker, and courier manifest management.</p>
             </div>
             <span class="live-badge" style="background:#00B050;">Live Broadcast Connected</span>
@@ -189,7 +379,7 @@
               
               <div class="parser-area">
                 <p style="color: var(--text-dark-secondary); font-size: 0.85rem; margin-bottom: 0.5rem;">
-                  Sellers: Paste M-PESA SMS text received on your merchant phones below. The regex engine will instantly match the Buyer's details, merge them into a single record, and update the Courier manifests.
+                  Paste M-PESA SMS text received on your merchant phones below. The regex engine will instantly match the Buyer's details, merge them into a single record, and update the Courier manifests.
                 </p>
                 
                 <textarea id="sms-input-field" class="parser-textarea" placeholder="Paste incoming MPESA text here. Example: QRE58KJS6F Confirmed. Ksh3,450.00 paid to Grogan Spares Zone on 27/5/26 at 4:15 PM..."></textarea>
@@ -197,6 +387,9 @@
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                   <button class="parser-action-btn" onclick="handleManualSMSParse()">
                     ⚡ Process and Match SMS
+                  </button>
+                  <button class="tool-btn" style="border-color:var(--secondary-orange); color:var(--secondary-orange);" onclick="simulateLiveBuyerPurchase()">
+                    🎬 Simulate Live Buyer Order
                   </button>
                 </div>
               </div>
@@ -234,11 +427,12 @@
                   <tr>
                     <th>MPESA Code</th>
                     <th>Buyer Info</th>
+                    <th>Bid Details</th>
                     <th>Total Paid</th>
                     <th>Split Breakdown</th>
                     <th>Delivery Hub</th>
-                    <th>SMS Status</th>
-                    <th>Logistics Status</th>
+                    <th>SMS Match</th>
+                    <th>Fulfillment</th>
                     <th>Action</th>
                   </tr>
                 </thead>
