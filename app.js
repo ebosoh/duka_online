@@ -336,6 +336,7 @@ function triggerBuyerCheckout(event) {
   const seller = ACTIVE_SELLERS.find((s) => s.id === sellerSelect.value);
   const hub = COLLECTION_POINTS.find((h) => h.id === hubId);
   
+  // Prepare global pending object
   pendingSTKPush = {
     buyerName: name,
     buyerContact: contact,
@@ -347,7 +348,9 @@ function triggerBuyerCheckout(event) {
     productPrice: bidPrice,
     deliveryFee: hub.fee,
     totalPaid: bidPrice + hub.fee,
-    collectionPoint: hub.name
+    collectionPoint: hub.name,
+    courierPochi: hub.PochiPhone,
+    platformPochi: "0711000000"
   };
 
   trackEvent("checkout_stk_initiated", {
@@ -505,9 +508,8 @@ function renderSellerDashboard() {
         </td>
         <td><span style="font-family: 'Outfit'; font-weight:700;">KES ${txn.totalPaid.toLocaleString()}</span></td>
         <td>
-          <div style="font-size: 0.8rem; font-weight:600; color: var(--primary-green);">Seller: KES ${txn.productAmountPaid.toLocaleString()}</div>
-          <div style="font-size: 0.75rem; color: var(--text-dark-secondary);">Courier Split (50%): KES ${txn.splitCourier.toLocaleString()}</div>
-          <div style="font-size: 0.75rem; color: var(--accent-red);">Platform Split (50%): KES ${txn.splitPlatform.toLocaleString()}</div>
+          <div style="font-size: 0.85rem; font-weight:600; color: var(--primary-green);">🛒 Sales Share: KES ${txn.productAmountPaid.toLocaleString()}</div>
+          <div style="font-size: 0.75rem; color: var(--text-dark-secondary);">🚚 Shipping Fee: KES ${txn.courierFeePaid.toLocaleString()}</div>
         </td>
         <td>
           <span style="font-size:0.8rem; font-weight:500;">${txn.collectionPoint}</span>
@@ -607,6 +609,9 @@ function handleManualSMSParse() {
       splitSeller: pendingMatch.productPrice,
       splitCourier: Number((courierFee * 0.5).toFixed(2)),
       splitPlatform: Number((courierFee * 0.5).toFixed(2)),
+      sellerPochi: pendingMatch.merchantPhone,
+      courierPochi: pendingMatch.courierPochi || "0722000005",
+      platformPochi: pendingMatch.platformPochi || "0711000000",
       matched: true,
       status: "Ready for Dispatch"
     };
@@ -637,7 +642,9 @@ function handleManualSMSParse() {
       productPrice: Math.round(parsed.amountPaid * 0.85),
       merchantId: matchedSeller.id,
       merchantName: matchedSeller.name,
-      merchantPhone: matchedSeller.PochiPhone
+      merchantPhone: matchedSeller.PochiPhone,
+      courierPochi: "0722000005",
+      platformPochi: "0711000000"
     };
 
     const newTxn = MpesaParser.mergeTransaction(parsed, mockBuyerForm);
@@ -689,6 +696,8 @@ function simulateLiveBuyerPurchase() {
     deliveryFee: randHub.fee,
     totalPaid: seller.initPrice + randHub.fee,
     collectionPoint: randHub.name,
+    courierPochi: randHub.PochiPhone,
+    platformPochi: "0711000000",
     timestamp: new Date().toISOString(),
     mpesaCode: null,
     matched: false,
@@ -734,8 +743,8 @@ function renderCourierDashboard() {
         <td><span style="font-weight: 600;">${txn.collectionPoint}</span></td>
         <td><span style="font-family: 'Outfit'; font-weight:700;">KES ${txn.courierFeePaid.toLocaleString()}</span></td>
         <td>
-          <div style="font-size: 0.8rem; font-weight:600; color: var(--primary-green);">Courier Cut (50%): KES ${txn.splitCourier.toLocaleString()}</div>
-          <div style="font-size: 0.75rem; color: var(--text-dark-secondary);">Safaricom Fee (50%): KES ${txn.splitPlatform.toLocaleString()}</div>
+          <div style="font-size: 0.8rem; font-weight:600; color: var(--primary-green);">🚚 Courier Share: KES ${txn.splitCourier.toLocaleString()} &rarr; ${txn.courierPochi || '0722000005'}</div>
+          <div style="font-size: 0.75rem; color: var(--text-dark-secondary);">💻 Platform Split: KES ${txn.splitPlatform.toLocaleString()}</div>
         </td>
         <td>
           <span class="badge ${getStatusClass(txn.status)}">${txn.status}</span>

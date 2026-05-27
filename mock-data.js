@@ -43,13 +43,13 @@ const INITIAL_PRODUCTS = [
 ];
 
 const COLLECTION_POINTS = [
-  { id: "hub-1", name: "Eldoret Main Hub", fee: 250 },
-  { id: "hub-2", name: "Kisumu Lakeside Depot", fee: 300 },
-  { id: "hub-3", name: "Kakamega Junction Office", fee: 280 },
-  { id: "hub-4", name: "Nyeri Central Point", fee: 200 },
-  { id: "hub-5", name: "Nairobi CBD Pick-up Centre", fee: 150 },
-  { id: "hub-6", name: "Mombasa GPO Office", fee: 350 },
-  { id: "hub-7", name: "Nakuru Highway Hub", fee: 220 }
+  { id: "hub-1", name: "Eldoret Main Hub", fee: 250, PochiPhone: "0722000001" },
+  { id: "hub-2", name: "Kisumu Lakeside Depot", fee: 300, PochiPhone: "0722000002" },
+  { id: "hub-3", name: "Kakamega Junction Office", fee: 280, PochiPhone: "0722000003" },
+  { id: "hub-4", name: "Nyeri Central Point", fee: 200, PochiPhone: "0722000004" },
+  { id: "hub-5", name: "Nairobi CBD Pick-up Centre", fee: 150, PochiPhone: "0722000005" },
+  { id: "hub-6", name: "Mombasa GPO Office", fee: 350, PochiPhone: "0722000006" },
+  { id: "hub-7", name: "Nakuru Highway Hub", fee: 220, PochiPhone: "0722000007" }
 ];
 
 const COURIER_PROVIDERS = [
@@ -83,6 +83,10 @@ const INITIAL_TRANSACTIONS = [
     splitSeller: 3200,          // 100% of product price
     splitCourier: 125,          // 50% of courier fee
     splitPlatform: 125,         // 50% platform fee
+    // Target Split Accounts (Private routing)
+    sellerPochi: "0722987654",
+    courierPochi: "0722000001",
+    platformPochi: "0711000000",
     // Status
     status: "Delivered",        // Pending | Paid & Merged | Ready for Dispatch | Dispatched | Delivered
     matched: true
@@ -106,6 +110,9 @@ const INITIAL_TRANSACTIONS = [
     splitSeller: 2500,
     splitCourier: 150,
     splitPlatform: 150,
+    sellerPochi: "0722111111",
+    courierPochi: "0722000002",
+    platformPochi: "0711000000",
     status: "Dispatched",
     matched: true
   },
@@ -128,6 +135,9 @@ const INITIAL_TRANSACTIONS = [
     splitSeller: 1500,
     splitCourier: 100,
     splitPlatform: 100,
+    sellerPochi: "0711555555",
+    courierPochi: "0722000004",
+    platformPochi: "0711000000",
     status: "Ready for Dispatch",
     matched: true
   },
@@ -139,7 +149,7 @@ const INITIAL_TRANSACTIONS = [
     collectionPoint: "Kakamega Junction Office",
     productName: "Premium Croc-Embossed Leather Handbag",
     productId: "prod-4",
-    mpesaCode: null, // Simulated failed payment or pending M-PESA matching
+    mpesaCode: null,
     mpesaSender: null,
     mpesaPhone: null,
     productAmountPaid: 0,
@@ -150,6 +160,9 @@ const INITIAL_TRANSACTIONS = [
     splitSeller: 0,
     splitCourier: 0,
     splitPlatform: 0,
+    sellerPochi: "0799000000",
+    courierPochi: "0722000003",
+    platformPochi: "0711000000",
     status: "Pending Payment",
     matched: false
   }
