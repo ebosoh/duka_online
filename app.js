@@ -51,6 +51,7 @@ document.addEventListener("DOMContentLoaded", () => {
   populateDropdowns();
   autoSelectSellerFromUrl(); // Automatically route URL parameters e.g., ?seller=grogan
   switchRole("buyer"); // Default to buyer view
+  startCourierTimerLoop(); // Start real-time dispatch timeline counters
 });
 
 // PWA & Service Worker registration
@@ -735,17 +736,59 @@ function renderCourierDashboard() {
   const courierTxns = transactions.filter((t) => t.matched && t.collectionPoint === courier.name);
 
   if (courierTxns.length === 0) {
-    tableBody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--text-dark-secondary);">No packages waiting for dispatch. Matched transactions appear here.</td></tr>`;
+    tableBody.innerHTML = `<tr><td colspan="10" style="text-align:center; color:var(--text-dark-secondary);">No packages waiting for dispatch. Matched transactions appear here.</td></tr>`;
     return;
   }
 
   courierTxns.forEach((txn) => {
+    let dispatchTimeStr = "—";
+    let statusText = txn.status;
+    let statusClass = getStatusClass(txn.status);
+
+    if (txn.dispatchedAt) {
+      try {
+        const date = new Date(txn.dispatchedAt);
+        dispatchTimeStr = date.toLocaleString("en-KE", { 
+          year: "numeric", 
+          month: "short", 
+          day: "numeric", 
+          hour: "numeric", 
+          minute: "2-digit", 
+          hour12: true 
+        });
+
+        // Determine automatic status based on real elapsed time since dispatch
+        const diffMs = new Date() - date;
+        const diffHours = diffMs / (1000 * 60 * 60);
+
+        if (diffHours < 24) {
+          statusText = "In-Transit";
+          statusClass = "in-transit";
+        } else if (diffHours < 48) {
+          statusText = "Delivered";
+          statusClass = "delivered";
+        } else if (diffHours < 72) {
+          statusText = "At-Risk";
+          statusClass = "at-risk";
+        } else {
+          statusText = "Lost";
+          statusClass = "lost";
+        }
+      } catch (e) {
+        console.error("Error formatting dispatch date:", e);
+      }
+    }
+
     tableBody.innerHTML += `
       <tr>
         <td><strong style="color:#FFF;">${txn.mpesaCode}</strong></td>
         <td>
           <div style="font-weight: 600;">${txn.buyerName}</div>
           <div style="font-size: 0.75rem; color: var(--text-dark-secondary);">${txn.buyerContact}</div>
+        </td>
+        <td>
+          <div style="font-weight: 700; color: var(--secondary-orange);">${txn.productName}</div>
+          <div style="font-size: 0.75rem; color: var(--text-dark-secondary);">Seller: ${txn.merchantName || 'Grogan Spares Zone'}</div>
         </td>
         <td><span style="font-weight: 600;">${txn.collectionPoint}</span></td>
         <td><span style="font-family: 'Outfit'; font-weight:700;">KES ${txn.courierFeePaid.toLocaleString()}</span></td>
@@ -754,7 +797,13 @@ function renderCourierDashboard() {
           <div style="font-size: 0.75rem; color: var(--text-dark-secondary);">💻 Platform Split: KES ${txn.splitPlatform.toLocaleString()}</div>
         </td>
         <td>
-          <span class="badge ${getStatusClass(txn.status)}">${txn.status}</span>
+          <span style="font-size:0.85rem; font-weight:500; color:var(--text-dark-secondary);">${dispatchTimeStr}</span>
+        </td>
+        <td>
+          <span class="time-since-dispatch-counter" style="font-family:'Outfit'; font-weight:700; font-size:0.9rem;" data-dispatched="${txn.dispatchedAt || ''}" data-txnid="${txn.firestoreId || txn.id}">—</span>
+        </td>
+        <td>
+          <span id="status-badge-${txn.firestoreId || txn.id}" class="badge ${statusClass}">${statusText}</span>
         </td>
         <td>
           <div style="display:flex; gap:8px;">
@@ -762,11 +811,11 @@ function renderCourierDashboard() {
               `<button class="parser-action-btn" style="padding: 6px 12px; font-size: 0.75rem; background: var(--secondary-orange);" onclick="updateTransactionStatus('${txn.firestoreId || txn.id}', 'Dispatched')">Dispatch Item</button>` : 
               ""
             }
-            ${txn.status === "Dispatched" ? 
+            ${txn.status === "Dispatched" || statusText === "In-Transit" ? 
               `<button class="parser-action-btn" style="padding: 6px 12px; font-size: 0.75rem; background: var(--primary-green);" onclick="updateTransactionStatus('${txn.firestoreId || txn.id}', 'Delivered')">Confirm Delivery</button>` : 
               ""
             }
-            ${txn.status === "Delivered" ? 
+            ${statusText === "Delivered" ? 
               `<span style="color:var(--text-dark-secondary); font-size:0.8rem;">📦 Item Delivered</span>` : 
               ""
             }
@@ -775,6 +824,9 @@ function renderCourierDashboard() {
       </tr>
     `;
   });
+
+  // Run immediate update for timers after rendering
+  updateCourierTimeCounters();
 }
 
 function getStatusClass(status) {
@@ -782,22 +834,105 @@ function getStatusClass(status) {
     case "Pending Payment": return "pending";
     case "Ready for Dispatch": return "ready";
     case "Dispatched": return "dispatched";
+    case "In-Transit": return "in-transit";
     case "Delivered": return "delivered";
+    case "At-Risk": return "at-risk";
+    case "Lost": return "lost";
     default: return "pending";
   }
 }
 
+// ==========================================================================
+// REAL-TIME COURIER TIMELINE TICKER (1s BACKGROUND LOOP)
+// ==========================================================================
+let courierTimerInterval = null;
+
+function startCourierTimerLoop() {
+  if (courierTimerInterval) clearInterval(courierTimerInterval);
+  updateCourierTimeCounters();
+  courierTimerInterval = setInterval(updateCourierTimeCounters, 1000);
+}
+
+function updateCourierTimeCounters() {
+  const elements = document.querySelectorAll(".time-since-dispatch-counter");
+  elements.forEach((el) => {
+    const dispatchedAtStr = el.dataset.dispatched;
+    if (!dispatchedAtStr) {
+      el.textContent = "—";
+      return;
+    }
+
+    const dispatchedAt = new Date(dispatchedAtStr);
+    const diffMs = new Date() - dispatchedAt;
+    
+    if (diffMs < 0) {
+      el.textContent = "0s";
+      return;
+    }
+
+    const diffSecs = Math.floor(diffMs / 1000);
+    const diffMins = Math.floor(diffSecs / 60);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    const displaySecs = diffSecs % 60;
+    const displayMins = diffMins % 60;
+    const displayHours = diffHours % 24;
+
+    let timeStr = "";
+    if (diffDays > 0) timeStr += `${diffDays}d `;
+    if (diffHours > 0 || diffDays > 0) timeStr += `${displayHours}h `;
+    if (diffMins > 0 || diffHours > 0 || diffDays > 0) timeStr += `${displayMins}m `;
+    timeStr += `${displaySecs}s`;
+
+    el.textContent = timeStr;
+
+    // Dynamically calculate and transition statuses in real-time
+    const txnid = el.dataset.txnid;
+    const statusEl = document.getElementById(`status-badge-${txnid}`);
+    if (statusEl) {
+      let statusText = "In-Transit";
+      let statusClass = "in-transit";
+
+      if (diffHours < 24) {
+        statusText = "In-Transit";
+        statusClass = "in-transit";
+      } else if (diffHours < 48) {
+        statusText = "Delivered";
+        statusClass = "delivered";
+      } else if (diffHours < 72) {
+        statusText = "At-Risk";
+        statusClass = "at-risk";
+      } else {
+        statusText = "Lost";
+        statusClass = "lost";
+      }
+
+      statusEl.textContent = statusText;
+      statusEl.className = `badge ${statusClass}`;
+    }
+  });
+}
+
 function updateTransactionStatus(id, newStatus) {
   const isFirestoreDocId = (db && transactions.some(t => t.firestoreId === id));
-  
+  const updateData = { status: newStatus };
+
+  if (newStatus === "Dispatched") {
+    updateData.dispatchedAt = new Date().toISOString();
+  }
+
   if (isFirestoreDocId) {
-    db.collection("transactions").doc(id).update({ status: newStatus })
+    db.collection("transactions").doc(id).update(updateData)
       .then(() => showToast(`Status updated: ${newStatus}`, "success"))
       .catch((err) => console.error("[Firebase] Status update failed:", err));
   } else {
     const txn = transactions.find((t) => t.id === id || t.firestoreId === id);
     if (txn) {
       txn.status = newStatus;
+      if (newStatus === "Dispatched") {
+        txn.dispatchedAt = updateData.dispatchedAt;
+      }
       saveLocalFallback();
       showToast(`Status updated: ${newStatus}`, "success");
       renderApp();

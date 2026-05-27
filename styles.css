@@ -648,8 +648,27 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .badge.delivered {
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--text-dark-primary);
+  background: rgba(0, 176, 80, 0.15);
+  color: var(--primary-green);
+  border: 1px solid rgba(0, 176, 80, 0.25);
+}
+
+.badge.in-transit {
+  background: rgba(255, 159, 28, 0.1);
+  color: var(--secondary-orange);
+  border: 1px solid rgba(255, 159, 28, 0.25);
+}
+
+.badge.at-risk {
+  background: rgba(251, 191, 36, 0.15);
+  color: #FBBF24;
+  border: 1px solid rgba(251, 191, 36, 0.3);
+}
+
+.badge.lost {
+  background: rgba(217, 4, 41, 0.1);
+  color: var(--accent-red);
+  border: 1px solid rgba(217, 4, 41, 0.25);
 }
 
 .badge.matched {
