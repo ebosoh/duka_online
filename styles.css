@@ -793,6 +793,7 @@ h1, h2, h3, h4, h5, h6 {
   cursor: pointer;
   white-space: nowrap;
   transition: var(--transition-fast);
+  flex-shrink: 0;
 }
 
 .ad-banner-spot .ad-button:hover {
@@ -1384,4 +1385,199 @@ body:not([style*="background-color: var(--bg-light)"]) .modal-close-btn {
   font-size: 1.8rem;
   margin: 0 auto;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* ==========================================================================
+   PREMIUM MOBILE COMPACTNESS & TOUCH DENSITY (max-width: 576px)
+   ========================================================================== */
+@media (max-width: 576px) {
+  /* Ultra-dense container padding (no margins wasted) */
+  #buyer-view, #seller-view, #courier-view {
+    padding: 0.75rem 0.5rem !important;
+    min-height: calc(100vh - 58px) !important;
+  }
+
+  /* Compact PWA app header */
+  .app-header {
+    padding: 0.5rem 0.75rem !important;
+  }
+
+  .brand-logo {
+    width: 32px;
+    height: 32px;
+    font-size: 1.15rem;
+    border-radius: 6px;
+  }
+
+  .brand-title {
+    font-size: 1.1rem !important;
+  }
+
+  /* Header Tabs side-by-side optimization (No wrapping or vertical stacking!) */
+  .nav-tabs {
+    border-radius: 20px;
+    padding: 2px;
+    gap: 2px;
+  }
+
+  .nav-btn {
+    padding: 5px 8px !important;
+    font-size: 0.75rem !important;
+    gap: 3px !important;
+    border-radius: 15px;
+  }
+
+  /* Compact typography scales */
+  h1 { font-size: 1.45rem !important; }
+  h2 { font-size: 1.25rem !important; }
+  h3 { font-size: 1.1rem !important; }
+  p { font-size: 0.8rem !important; line-height: 1.4 !important; }
+
+  /* Dense buyer checkout panel */
+  .checkout-form-card {
+    padding: 1rem !important;
+    border-radius: var(--border-radius-md) !important;
+  }
+
+  .auction-card {
+    padding: 1rem !important;
+    border-radius: var(--border-radius-md) !important;
+    margin-bottom: 0.75rem !important;
+  }
+
+  .form-group {
+    margin-bottom: 0.75rem !important;
+  }
+
+  .form-group label {
+    font-size: 0.8rem !important;
+    margin-bottom: 0.25rem !important;
+  }
+
+  .form-input, .form-select {
+    padding: 9px 12px !important;
+    font-size: 0.85rem !important;
+  }
+
+  /* Dense pricing breakdown widget */
+  .pricing-breakdown {
+    margin: 0.75rem 0 !important;
+    padding: 0.75rem !important;
+    gap: 6px !important;
+    border-radius: 8px !important;
+  }
+
+  .breakdown-row {
+    font-size: 0.85rem !important;
+  }
+
+  .breakdown-row.total {
+    font-size: 1.05rem !important;
+    padding-top: 6px !important;
+  }
+
+  .cta-button {
+    padding: 12px 16px !important;
+    font-size: 0.95rem !important;
+    border-radius: var(--border-radius-sm) !important;
+  }
+
+  /* Highly compact Stats Cards */
+  .stats-grid {
+    gap: 0.5rem !important;
+    margin-bottom: 1rem !important;
+  }
+
+  .stat-card {
+    padding: 0.85rem !important;
+    border-radius: 10px !important;
+  }
+
+  .stat-label {
+    font-size: 0.75rem !important;
+    margin-bottom: 0.25rem !important;
+  }
+
+  .stat-value {
+    font-size: 1.35rem !important;
+  }
+
+  .stat-trend {
+    font-size: 0.7rem !important;
+  }
+
+  /* Dense glass panels and control headers */
+  .glass-panel {
+    padding: 0.75rem !important;
+    border-radius: var(--border-radius-md) !important;
+    margin-bottom: 0.75rem !important;
+  }
+
+  .dash-header {
+    margin-bottom: 1rem !important;
+    gap: 0.5rem !important;
+  }
+
+  /* Compact dynamic share/payout card */
+  #seller-share-card {
+    padding: 10px 12px !important;
+    margin-bottom: 1rem !important;
+    gap: 10px !important;
+    border-radius: 10px !important;
+  }
+
+  #seller-share-card h4 {
+    font-size: 0.9rem !important;
+  }
+
+  /* Compact transaction logs table layout */
+  .transaction-table th {
+    padding: 8px 10px !important;
+    font-size: 0.7rem !important;
+  }
+
+  .transaction-table td {
+    padding: 8px 10px !important;
+    font-size: 0.75rem !important;
+  }
+
+  .badge {
+    padding: 2px 6px !important;
+    font-size: 0.65rem !important;
+    border-radius: 10px !important;
+  }
+
+  .action-dropdown, .parser-action-btn {
+    padding: 4px 8px !important;
+    font-size: 0.75rem !important;
+    border-radius: 4px !important;
+  }
+
+  /* Dense manual SMS paste area */
+  .parser-textarea {
+    height: 70px !important;
+    padding: 8px !important;
+    font-size: 0.8rem !important;
+  }
+
+  .parser-action-btn {
+    padding: 8px 14px !important;
+    font-size: 0.8rem !important;
+  }
+
+  /* Bottom-sheets touch optimized heights */
+  .signup-modal.bottom-sheet {
+    border-top-left-radius: 20px !important;
+    border-top-right-radius: 20px !important;
+  }
+
+  .signup-header {
+    padding: 0.85rem 1rem !important;
+  }
+
+  .signup-body {
+    padding: 1rem !important;
+    gap: 0.85rem !important;
+    max-height: 70vh !important;
+  }
 }
