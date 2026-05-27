@@ -49,6 +49,7 @@ document.addEventListener("DOMContentLoaded", () => {
   loadData();
   setupEventListeners();
   populateDropdowns();
+  autoSelectSellerFromUrl(); // Automatically route URL parameters e.g., ?seller=grogan
   switchRole("buyer"); // Default to buyer view
 });
 
@@ -205,6 +206,32 @@ function populateDropdowns() {
   }
 }
 
+// Dynamically route and auto-select seller from URL parameters (e.g. ?seller=grogan or ?seller=0722987654)
+function autoSelectSellerFromUrl() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const sellerQuery = urlParams.get("seller");
+  
+  if (sellerQuery) {
+    const cleanQuery = sellerQuery.trim().toLowerCase();
+    
+    // Scan matching seller by ID, shortName, or Pochi phone
+    const matchedSeller = ACTIVE_SELLERS.find(s => 
+      s.id.toLowerCase() === cleanQuery || 
+      s.shortName.toLowerCase() === cleanQuery || 
+      s.PochiPhone === cleanQuery
+    );
+    
+    if (matchedSeller) {
+      const selectEl = document.getElementById("checkout-live-seller");
+      if (selectEl) {
+        selectEl.value = matchedSeller.id;
+        handleCheckoutSellerChange();
+        console.log(`[URL Dispatcher] Auto-routing connected. Streamer channel loaded: ${matchedSeller.name}`);
+      }
+    }
+  }
+}
+
 // ==========================================================================
 // VIEWS ROUTER & ROLE SWITCHER
 // ==========================================================================
@@ -262,9 +289,9 @@ function handleCheckoutSellerChange() {
 
   const seller = ACTIVE_SELLERS.find((s) => s.id === sellerSelect.value);
   if (seller) {
-    // Autopopulate fields with selected seller's active demo values
-    document.getElementById("buyer-form-item-name").value = seller.initItem;
-    document.getElementById("buyer-form-bid-price").value = seller.initPrice;
+    // Leave fields empty because item names and prices are random values entered explicitly by the buyer
+    document.getElementById("buyer-form-item-name").value = "";
+    document.getElementById("buyer-form-bid-price").value = "";
     
     showToast(`Paying Seller Channel: ${seller.name}`, "success");
     
