@@ -283,6 +283,23 @@ function renderBuyerPortal() {
   if (streamerName) {
     streamerName.textContent = `Checkout for: ${seller.name}`;
   }
+
+  // Programmatic reinforcement to hide instructions and ads cards on all mobile devices (under 768px)
+  const instructionsWrapper = document.querySelector(".buyer-instructions-wrapper");
+  const mobileBlinkingBadge = document.querySelector(".blinking-mobile-badge");
+  if (instructionsWrapper) {
+    if (window.innerWidth < 768) {
+      instructionsWrapper.style.setProperty("display", "none", "important");
+      if (mobileBlinkingBadge) {
+        mobileBlinkingBadge.style.setProperty("display", "inline-flex", "important");
+      }
+    } else {
+      instructionsWrapper.style.removeProperty("display");
+      if (mobileBlinkingBadge) {
+        mobileBlinkingBadge.style.removeProperty("display");
+      }
+    }
+  }
 }
 
 function handleCheckoutSellerChange() {
@@ -1368,4 +1385,7 @@ function setupEventListeners() {
   if (selectPoint) {
     selectPoint.addEventListener("change", updateCheckoutPricing);
   }
+
+  // Handle dynamic screen rotations & resizes to instantly hide or show distraction cards
+  window.addEventListener("resize", renderBuyerPortal);
 }
