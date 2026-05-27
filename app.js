@@ -961,12 +961,10 @@ function registerNewSeller(event) {
   const name = document.getElementById("reg-seller-name").value.trim();
   const shortName = document.getElementById("reg-seller-short").value.trim();
   const PochiPhone = document.getElementById("reg-seller-pochi").value.trim();
-  const initItem = document.getElementById("reg-seller-item").value.trim();
-  const initPrice = parseFloat(document.getElementById("reg-seller-price").value) || 0;
   const avatar = document.getElementById("reg-seller-avatar").value;
   const pin = document.getElementById("reg-seller-pin").value.trim();
 
-  if (!name || !shortName || !PochiPhone || !initItem || initPrice <= 0 || !pin) {
+  if (!name || !shortName || !PochiPhone || !pin) {
     showToast("Please fill in all registration fields!", "error");
     return;
   }
@@ -988,8 +986,8 @@ function registerNewSeller(event) {
     PochiPhone: PochiPhone,
     shortName: shortName,
     avatar: avatar,
-    initItem: initItem,
-    initPrice: initPrice,
+    initItem: "Live Show Item", // Safe baseline default for direct matching simulations
+    initPrice: 1000,            // Safe baseline default
     pin: pin
   };
 
@@ -1039,9 +1037,8 @@ function registerNewCourier(event) {
   const name = document.getElementById("reg-courier-name").value.trim();
   const PochiPhone = document.getElementById("reg-courier-pochi").value.trim();
   const pin = document.getElementById("reg-courier-pin").value.trim();
-  const fee = parseFloat(document.getElementById("reg-courier-fee").value) || 0;
 
-  if (!name || !PochiPhone || fee <= 0 || !pin) {
+  if (!name || !PochiPhone || !pin) {
     showToast("Please fill in all hub details!", "error");
     return;
   }
@@ -1060,7 +1057,7 @@ function registerNewCourier(event) {
   const newHub = {
     id: `hub-${Date.now()}`,
     name: name,
-    fee: fee,
+    fee: 200, // Standard default shipping fee (which varies dynamically by distance/weight in practice)
     PochiPhone: PochiPhone,
     pin: pin
   };
