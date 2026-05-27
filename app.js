@@ -1108,6 +1108,13 @@ function checkSellerAuth() {
           sellerChannelSelector.value = activeSellerChannel;
           sellerChannelSelector.disabled = true;
         }
+
+        // Set dynamic live share URL based on shortName
+        const shareInput = document.getElementById("seller-share-url-input");
+        if (shareInput) {
+          shareInput.value = `${window.location.origin}/?seller=${verified.shortName.toLowerCase()}`;
+        }
+
         return true;
       }
     } catch (e) {
@@ -1118,6 +1125,24 @@ function checkSellerAuth() {
   if (authGate) authGate.style.display = "flex";
   if (dashContent) dashContent.style.display = "none";
   return false;
+}
+
+// Copy Merchant Live Checkout Link to Clipboard
+function copySellerShareLink() {
+  const shareInput = document.getElementById("seller-share-url-input");
+  if (shareInput) {
+    shareInput.select();
+    shareInput.setSelectionRange(0, 99999); // Touch optimization
+
+    try {
+      navigator.clipboard.writeText(shareInput.value).then(() => {
+        showToast("Live broadcast link copied to clipboard!", "success");
+      });
+    } catch (err) {
+      document.execCommand("copy"); // Fallback for low-end browsers
+      showToast("Live broadcast link copied to clipboard!", "success");
+    }
+  }
 }
 
 // Handle Seller Log In Form Submission

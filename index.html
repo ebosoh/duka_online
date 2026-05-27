@@ -368,6 +368,18 @@
             <span class="live-badge" style="background:#00B050;">Live Broadcast Connected</span>
           </div>
 
+          <!-- Dynamic Payout Link Alert Card -->
+          <div id="seller-share-card" class="glass-panel" style="margin-bottom: 2rem; border-color: var(--primary-green); background: rgba(0, 176, 80, 0.05); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; padding: 15px 20px;">
+            <div>
+              <h4 style="color:#FFF; display:flex; align-items:center; gap:8px;">🔗 Your Live Broadcast Payout Link</h4>
+              <p style="color: var(--text-dark-secondary); font-size: 0.85rem; margin-top: 4px;">Copy and paste this link into your TikTok, Facebook, or Instagram live-stream bio!</p>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center; flex-grow: 1; max-width: 500px;">
+              <input type="text" id="seller-share-url-input" class="form-input" style="background: rgba(0, 0, 0, 0.3); border-color: var(--border-dark); color: #FFF; font-size: 0.9rem;" readonly>
+              <button class="tool-btn" style="background: var(--primary-green); border-color: var(--primary-green); color: white; padding: 12px 20px; font-size: 0.9rem; font-weight:700;" onclick="copySellerShareLink()">📋 Copy Link</button>
+            </div>
+          </div>
+
           <!-- Statistics breakdown row -->
           <div class="stats-grid">
             <div class="stat-card">
