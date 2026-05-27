@@ -592,33 +592,33 @@
       </div>
       <form id="seller-signup-form" onsubmit="registerNewSeller(event)" class="signup-body">
         <div class="form-group">
-          <label for="reg-seller-name" style="color:var(--text-light-primary);">Shop Name</label>
-          <input type="text" id="reg-seller-name" class="form-input" placeholder="e.g. Ruiru Jeans Hub" required>
+          <label for="reg-seller-name">Shop Name</label>
+          <input type="text" id="reg-seller-name" class="form-input" placeholder="Shop Name, e.g. Ruiru Jeans Hub" required>
         </div>
         <div class="form-group">
-          <label for="reg-seller-short" style="color:var(--text-light-primary);">Short Name (Identifier)</label>
-          <input type="text" id="reg-seller-short" class="form-input" placeholder="e.g. Jeans" required>
+          <label for="reg-seller-short">Short Name (Identifier)</label>
+          <input type="text" id="reg-seller-short" class="form-input" placeholder="Short Name, e.g. Jeans" required>
         </div>
         <div class="form-group">
-          <label for="reg-seller-pochi" style="color:var(--text-light-primary);">M-PESA Pochi Phone Number</label>
-          <input type="tel" id="reg-seller-pochi" class="form-input" placeholder="e.g. 0712345678" pattern="^(07|01|254)\d{8}$" inputmode="tel" required>
+          <label for="reg-seller-pochi">M-PESA Pochi Phone Number</label>
+          <input type="tel" id="reg-seller-pochi" class="form-input" placeholder="M-Pesa Pochi Number, e.g. 0724000000" pattern="^(07|01|254)\d{8}$" inputmode="tel" required>
         </div>
         <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
           <div>
-            <label for="reg-seller-item" style="color:var(--text-light-primary);">Initial Product Name</label>
-            <input type="text" id="reg-seller-item" class="form-input" placeholder="e.g. Slim Jeans" required>
+            <label for="reg-seller-item">Initial Product Name</label>
+            <input type="text" id="reg-seller-item" class="form-input" placeholder="First Product Name, e.g. Slim Jeans" required>
           </div>
           <div>
-            <label for="reg-seller-price" style="color:var(--text-light-primary);">Product Price (KES)</label>
-            <input type="number" id="reg-seller-price" class="form-input" placeholder="e.g. 1500" min="1" inputmode="decimal" required>
+            <label for="reg-seller-price">Product Price (KES)</label>
+            <input type="number" id="reg-seller-price" class="form-input" placeholder="Product Price (KES), e.g. 1500" min="1" inputmode="decimal" required>
           </div>
         </div>
         <div class="form-group">
-          <label for="reg-seller-pin" style="color:var(--text-light-primary);">Create 4-Digit Account PIN</label>
-          <input type="password" id="reg-seller-pin" class="form-input" placeholder="e.g. 1234" maxlength="4" pattern="^\d{4}$" inputmode="numeric" required>
+          <label for="reg-seller-pin">Create 4-Digit Account PIN</label>
+          <input type="password" id="reg-seller-pin" class="form-input" placeholder="Create 4-Digit PIN, e.g. 1234" maxlength="4" pattern="^\d{4}$" inputmode="numeric" required>
         </div>
         <div class="form-group">
-          <label for="reg-seller-avatar" style="color:var(--text-light-primary);">Select Icon Emoji</label>
+          <label for="reg-seller-avatar">Select Icon Emoji</label>
           <select id="reg-seller-avatar" class="form-select">
             <option value="🛍️">🛍️ Shop Bag</option>
             <option value="👗">👗 Fashion</option>
@@ -644,20 +644,20 @@
       </div>
       <form id="courier-signup-form" onsubmit="registerNewCourier(event)" class="signup-body">
         <div class="form-group">
-          <label for="reg-courier-name" style="color:var(--text-light-primary);">Hub Name (Pickup Office)</label>
-          <input type="text" id="reg-courier-name" class="form-input" placeholder="e.g. Garissa Main Depot" required>
+          <label for="reg-courier-name">Hub Name (Pickup Office)</label>
+          <input type="text" id="reg-courier-name" class="form-input" placeholder="Depot Hub Name, e.g. Garissa Main Depot" required>
         </div>
         <div class="form-group">
-          <label for="reg-courier-pochi" style="color:var(--text-light-primary);">Courier Pochi Phone Number</label>
-          <input type="tel" id="reg-courier-pochi" class="form-input" placeholder="e.g. 0722000008" pattern="^(07|01|254)\d{8}$" inputmode="tel" required>
+          <label for="reg-courier-pochi">Courier Pochi Phone Number</label>
+          <input type="tel" id="reg-courier-pochi" class="form-input" placeholder="M-Pesa Pochi Number, e.g. 0724000000" pattern="^(07|01|254)\d{8}$" inputmode="tel" required>
         </div>
         <div class="form-group">
-          <label for="reg-courier-pin" style="color:var(--text-light-primary);">Create 4-Digit Account PIN</label>
-          <input type="password" id="reg-courier-pin" class="form-input" placeholder="e.g. 1234" maxlength="4" pattern="^\d{4}$" inputmode="numeric" required>
+          <label for="reg-courier-pin">Create 4-Digit Account PIN</label>
+          <input type="password" id="reg-courier-pin" class="form-input" placeholder="Create 4-Digit PIN, e.g. 1234" maxlength="4" pattern="^\d{4}$" inputmode="numeric" required>
         </div>
         <div class="form-group">
-          <label for="reg-courier-fee" style="color:var(--text-light-primary);">Standard Shipping Fee (KES)</label>
-          <input type="number" id="reg-courier-fee" class="form-input" placeholder="e.g. 350" min="1" inputmode="decimal" required>
+          <label for="reg-courier-fee">Standard Shipping Fee (KES)</label>
+          <input type="number" id="reg-courier-fee" class="form-input" placeholder="Shipping Fee (KES), e.g. 350" min="1" inputmode="decimal" required>
         </div>
         <button type="submit" class="cta-button" style="background:var(--secondary-orange); box-shadow: 0 4px 15px rgba(255, 159, 28, 0.3);">
           ⚡ Register Courier Hub

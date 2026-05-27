@@ -1238,6 +1238,10 @@ body:not([style*="background-color: var(--bg-light)"]) .signup-modal {
   box-shadow: var(--shadow-dark);
 }
 
+body:not([style*="background-color: var(--bg-light)"]) .signup-modal label {
+  color: var(--text-dark-primary);
+}
+
 .signup-header {
   padding: 1.25rem 1.5rem;
   border-bottom: 1px solid var(--border-light);
