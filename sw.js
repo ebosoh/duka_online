@@ -1,4 +1,4 @@
-const CACHE_NAME = "duka-online-cache-v2";
+const CACHE_NAME = "duka-online-cache-v6";
 const ASSETS = [
   "./",
   "./index.html",
