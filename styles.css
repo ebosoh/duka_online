@@ -480,6 +480,10 @@ h1, h2, h3, h4, h5, h6 {
   background: var(--accent-red);
 }
 
+.stat-card.shipping::before {
+  background: var(--secondary-orange);
+}
+
 .stat-label {
   color: var(--text-dark-secondary);
   font-size: 0.85rem;

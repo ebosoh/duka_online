@@ -485,24 +485,20 @@ function renderSellerDashboard() {
   const merchantTxns = transactions.filter((t) => t.merchantPhone === activeSellerChannel);
 
   let totalProductSales = 0;
-  let totalPlatformFees = 0;
-  let totalCourierEarnings = 0;
+  let totalShippingFee = 0;
 
   merchantTxns.forEach((t) => {
     if (t.matched) {
       totalProductSales += t.productAmountPaid;
-      totalPlatformFees += t.splitPlatform;
-      totalCourierEarnings += t.splitCourier;
+      totalShippingFee += t.courierFeePaid;
     }
   });
 
   const sellerSalesVal = document.getElementById("seller-sales-value");
-  const platformFeesVal = document.getElementById("platform-fees-value");
-  const courierEarningsVal = document.getElementById("courier-earnings-value");
+  const sellerShippingVal = document.getElementById("seller-shipping-value");
 
   if (sellerSalesVal) sellerSalesVal.textContent = `KES ${totalProductSales.toLocaleString()}`;
-  if (platformFeesVal) platformFeesVal.textContent = `KES ${totalPlatformFees.toLocaleString()}`;
-  if (courierEarningsVal) courierEarningsVal.textContent = `KES ${totalCourierEarnings.toLocaleString()}`;
+  if (sellerShippingVal) sellerShippingVal.textContent = `KES ${totalShippingFee.toLocaleString()}`;
 
   const tableBody = document.getElementById("seller-txn-table-body");
   if (!tableBody) return;
