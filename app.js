@@ -19,12 +19,7 @@ const firebaseConfig = {
 };
 
 // Registered Merchants (Dynamic Live Show Channels)
-let ACTIVE_SELLERS = [
-  { id: "seller-1", name: "Grogan Spares Zone", PochiPhone: "0722987654", shortName: "Grogan", avatar: "🛠️", initItem: "Heavy-Duty Brake Pads (Pair)", initPrice: 3200, pin: "1234" },
-  { id: "seller-2", name: "Amina Omondi Fashion", PochiPhone: "0722111111", shortName: "Amina", avatar: "👗", initItem: "Vintage Denim Jacket", initPrice: 1800, pin: "1234" },
-  { id: "seller-3", name: "Velo Nicotine Shop", PochiPhone: "0711555555", shortName: "Velo", avatar: "🚬", initItem: "Velo Nicotine Pouches 2-Pack", initPrice: 1200, pin: "1234" },
-  { id: "seller-4", name: "TechBrain Gadgets Hub", PochiPhone: "0799000000", shortName: "Gadgets", avatar: "💻", initItem: "Wireless ANC Earbuds Pro", initPrice: 4500, pin: "1234" }
-];
+let ACTIVE_SELLERS = [];
 
 // Global State Variables
 let transactions = [];
@@ -152,9 +147,9 @@ function loadLocalFallback() {
   const storedTxns = localStorage.getItem("duka_transactions");
   if (storedTxns) {
     transactions = JSON.parse(storedTxns);
-  } else if (typeof INITIAL_TRANSACTIONS !== "undefined") {
+  } else if (typeof INITIAL_TRANSACTIONS !== "undefined" && INITIAL_TRANSACTIONS.length > 0) {
     transactions = INITIAL_TRANSACTIONS.map((txn) => {
-      const seedSeller = ACTIVE_SELLERS[0];
+      const seedSeller = ACTIVE_SELLERS[0] || { id: "none", name: "None", PochiPhone: "" };
       return {
         ...txn,
         merchantId: seedSeller.id,
@@ -175,6 +170,7 @@ function populateDropdowns() {
   // Populate Buyer Checkout Seller Selector
   const buyerSellerSelect = document.getElementById("checkout-live-seller");
   if (buyerSellerSelect) {
+    const savedValue = buyerSellerSelect.value;
     buyerSellerSelect.innerHTML = "";
     ACTIVE_SELLERS.forEach((seller) => {
       const option = document.createElement("option");
@@ -182,11 +178,15 @@ function populateDropdowns() {
       option.textContent = `${seller.name} (${seller.avatar})`;
       buyerSellerSelect.appendChild(option);
     });
+    if (savedValue && ACTIVE_SELLERS.some(s => s.id === savedValue)) {
+      buyerSellerSelect.value = savedValue;
+    }
   }
 
   // Populate Seller Channel Filter Selector
   const sellerChannelSelector = document.getElementById("seller-channel-selector");
   if (sellerChannelSelector) {
+    const savedValue = sellerChannelSelector.value;
     sellerChannelSelector.innerHTML = "";
     ACTIVE_SELLERS.forEach((seller) => {
       const option = document.createElement("option");
@@ -194,18 +194,39 @@ function populateDropdowns() {
       option.textContent = `${seller.name} (${seller.PochiPhone})`;
       sellerChannelSelector.appendChild(option);
     });
+    if (savedValue && ACTIVE_SELLERS.some(s => s.PochiPhone === savedValue)) {
+      sellerChannelSelector.value = savedValue;
+    }
   }
 
   // Populate Collection Points
   const collectionSelect = document.getElementById("checkout-collection-point");
-  if (collectionSelect && collectionSelect.options.length <= 1) {
+  if (collectionSelect) {
+    const savedValue = collectionSelect.value;
+    collectionSelect.innerHTML = "";
+    
+    const defaultOption = document.createElement("option");
+    defaultOption.value = "";
+    defaultOption.disabled = true;
+    if (!savedValue) {
+      defaultOption.selected = true;
+    }
+    defaultOption.textContent = "-- Choose Pickup Hub --";
+    collectionSelect.appendChild(defaultOption);
+
     COLLECTION_POINTS.forEach((hub) => {
       const option = document.createElement("option");
       option.value = hub.id;
       option.textContent = `${hub.name} (+ KES ${hub.fee})`;
       collectionSelect.appendChild(option);
     });
+    if (savedValue && COLLECTION_POINTS.some(h => h.id === savedValue)) {
+      collectionSelect.value = savedValue;
+    }
   }
+
+  // Ensure URL parameter auto-selection is executed after dropdown populates/updates
+  autoSelectSellerFromUrl();
 }
 
 // Dynamically route and auto-select seller from URL parameters (e.g. ?seller=grogan or ?seller=0722987654)
@@ -226,9 +247,11 @@ function autoSelectSellerFromUrl() {
     if (matchedSeller) {
       const selectEl = document.getElementById("checkout-live-seller");
       if (selectEl) {
-        selectEl.value = matchedSeller.id;
-        handleCheckoutSellerChange();
-        console.log(`[URL Dispatcher] Auto-routing connected. Streamer channel loaded: ${matchedSeller.name}`);
+        if (selectEl.value !== matchedSeller.id) {
+          selectEl.value = matchedSeller.id;
+          handleCheckoutSellerChange();
+          console.log(`[URL Dispatcher] Auto-routing connected. Streamer channel loaded: ${matchedSeller.name}`);
+        }
       }
     }
   }
@@ -1039,45 +1062,63 @@ function loadSellersAndHubs() {
   // 1. Load from LocalStorage fallback first (instant offline render)
   const storedSellers = localStorage.getItem("duka_sellers");
   if (storedSellers) {
-    ACTIVE_SELLERS = JSON.parse(storedSellers);
+    try {
+      const localSellers = JSON.parse(storedSellers);
+      localSellers.forEach(ls => {
+        if (!ACTIVE_SELLERS.some(s => s.PochiPhone === ls.PochiPhone || s.id === ls.id)) {
+          ACTIVE_SELLERS.push(ls);
+        }
+      });
+    } catch (e) {
+      console.error("Error loading stored sellers:", e);
+    }
   }
   const storedHubs = localStorage.getItem("duka_hubs");
   if (storedHubs) {
-    COLLECTION_POINTS = JSON.parse(storedHubs);
+    try {
+      const localHubs = JSON.parse(storedHubs);
+      localHubs.forEach(lh => {
+        if (!COLLECTION_POINTS.some(h => h.PochiPhone === lh.PochiPhone || h.id === lh.id)) {
+          COLLECTION_POINTS.push(lh);
+        }
+      });
+    } catch (e) {
+      console.error("Error loading stored hubs:", e);
+    }
   }
 
   // 2. Fetch from Firestore if connected (syncs online updates in background!)
   if (db) {
     db.collection("sellers").get().then((snapshot) => {
+      let cloudSellers = [];
       if (!snapshot.empty) {
-        let cloudSellers = [];
         snapshot.forEach(doc => cloudSellers.push(doc.data()));
-        
-        // Merge cloud sellers with local (ensuring no duplicates by Pochi Phone)
-        cloudSellers.forEach(cs => {
-          if (!ACTIVE_SELLERS.some(s => s.PochiPhone === cs.PochiPhone)) {
-            ACTIVE_SELLERS.push(cs);
-          }
-        });
-        localStorage.setItem("duka_sellers", JSON.stringify(ACTIVE_SELLERS));
-        populateDropdowns(); // Re-populate UI dropdowns
       }
+
+      // Merge cloud sellers with local (ensuring no duplicates by Pochi Phone)
+      cloudSellers.forEach(cs => {
+        if (!ACTIVE_SELLERS.some(s => s.PochiPhone === cs.PochiPhone)) {
+          ACTIVE_SELLERS.push(cs);
+        }
+      });
+      localStorage.setItem("duka_sellers", JSON.stringify(ACTIVE_SELLERS));
+      populateDropdowns(); // Re-populate UI dropdowns
     }).catch(err => console.log("Sellers fetch failed or offline:", err));
 
     db.collection("hubs").get().then((snapshot) => {
+      let cloudHubs = [];
       if (!snapshot.empty) {
-        let cloudHubs = [];
         snapshot.forEach(doc => cloudHubs.push(doc.data()));
-        
-        // Merge cloud hubs with local (ensuring no duplicates by ID)
-        cloudHubs.forEach(ch => {
-          if (!COLLECTION_POINTS.some(h => h.id === ch.id || h.PochiPhone === ch.PochiPhone)) {
-            COLLECTION_POINTS.push(ch);
-          }
-        });
-        localStorage.setItem("duka_hubs", JSON.stringify(COLLECTION_POINTS));
-        populateDropdowns(); // Re-populate UI dropdowns
       }
+
+      // Merge cloud hubs with local (ensuring no duplicates by ID)
+      cloudHubs.forEach(ch => {
+        if (!COLLECTION_POINTS.some(h => h.id === ch.id || h.PochiPhone === ch.PochiPhone)) {
+          COLLECTION_POINTS.push(ch);
+        }
+      });
+      localStorage.setItem("duka_hubs", JSON.stringify(COLLECTION_POINTS));
+      populateDropdowns(); // Re-populate UI dropdowns
     }).catch(err => console.log("Hubs fetch failed or offline:", err));
   }
 }
