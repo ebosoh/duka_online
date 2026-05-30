@@ -736,7 +736,7 @@ h1, h2, h3, h4, h5, h6 {
   background: linear-gradient(135deg, rgba(26, 29, 36, 0.9), rgba(15, 23, 42, 0.95));
   border: 1.5px dashed rgba(255, 159, 28, 0.35);
   border-radius: var(--border-radius-md);
-  padding: 24px 25px 16px 25px;
+  padding: 16px 20px; /* Reduced vertical padding for compact look */
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -751,7 +751,7 @@ h1, h2, h3, h4, h5, h6 {
   content: 'Sponsored Ad';
   position: absolute;
   top: 6px;
-  right: 16px;
+  left: 20px; /* Moved to top-left to avoid colliding with the button on desktop */
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.15);
   color: var(--text-dark-secondary);
@@ -790,14 +790,15 @@ h1, h2, h3, h4, h5, h6 {
   background: var(--secondary-orange);
   color: white;
   border: none;
-  padding: 8px 16px;
+  padding: 6px 14px; /* Reduced padding to make button sleek */
   border-radius: 6px;
-  font-size: 0.85rem;
+  font-size: 0.8rem; /* Slightly smaller for premium scale */
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
   transition: var(--transition-fast);
   flex-shrink: 0;
+  align-self: center; /* Center-align vertically */
 }
 
 .ad-banner-spot .ad-button:hover {
@@ -811,13 +812,19 @@ h1, h2, h3, h4, h5, h6 {
     flex-direction: column;
     text-align: center;
     padding: 24px 15px 15px 15px;
-    gap: 8px;
+    gap: 12px;
   }
   .ad-banner-spot .ad-desc {
     font-size: 0.75rem;
   }
+  .ad-banner-spot > div {
+    margin-right: 0 !important; /* Remove right margin on mobile */
+    justify-content: center;
+  }
   .ad-banner-spot .ad-button {
     width: 100%;
+    max-width: 200px; /* Keep mobile button proportional */
+    padding: 8px 16px;
   }
 }
 
