@@ -1,5 +1,5 @@
 /**
- * DUKA ONLINE - CORE APPLICATION CONTROLLER (FLATTENED & LIVE-TUNED)
+ * livePAY - CORE APPLICATION CONTROLLER (FLATTENED & LIVE-TUNED)
  * Optimized for TikTok/FB Live shopping, Pochi la Biashara peer-to-peer transfers, and instant courier matching.
  */
 
@@ -144,7 +144,7 @@ function loadData() {
 
 // Fallback logic using LocalStorage
 function loadLocalFallback() {
-  const storedTxns = localStorage.getItem("duka_transactions");
+  const storedTxns = localStorage.getItem("livepay_transactions");
   if (storedTxns) {
     transactions = JSON.parse(storedTxns);
   } else if (typeof INITIAL_TRANSACTIONS !== "undefined" && INITIAL_TRANSACTIONS.length > 0) {
@@ -162,7 +162,7 @@ function loadLocalFallback() {
 }
 
 function saveLocalFallback() {
-  localStorage.setItem("duka_transactions", JSON.stringify(transactions));
+  localStorage.setItem("livepay_transactions", JSON.stringify(transactions));
 }
 
 // Populate dropdown options
@@ -1115,7 +1115,7 @@ function triggerReportPrint(timeframe) {
   const printHeaderDiv = document.createElement("div");
   printHeaderDiv.className = "print-header";
   printHeaderDiv.innerHTML = `
-    <h1>DUKA ONLINE LOGISTICS & PAYOUT REPORT</h1>
+    <h1>livePAY LOGISTICS & PAYOUT REPORT</h1>
     <h3>SCOPE: ${scopeTitle}</h3>
     <p>Report Period: <strong>${timeframe.toUpperCase()}</strong> | Date Generated: ${now.toLocaleString("en-KE")}</p>
     <p>Total Matched Records: ${filtered.filter(t => t.matched).length} | Pending/Unmatched: ${filtered.filter(t => !t.matched).length}</p>
@@ -1168,11 +1168,11 @@ function showToast(message, type = "success") {
 }
 
 // ==========================================================================
-// DYNAMIC DUKA ONLINE REGISTRIES (LocalStorage & Asynchronous Firestore Sync)
+// DYNAMIC livePAY REGISTRIES (LocalStorage & Asynchronous Firestore Sync)
 // ==========================================================================
 function loadSellersAndHubs() {
   // 1. Load from LocalStorage fallback first (instant offline render)
-  const storedSellers = localStorage.getItem("duka_sellers");
+  const storedSellers = localStorage.getItem("livepay_sellers");
   if (storedSellers) {
     try {
       const localSellers = JSON.parse(storedSellers);
@@ -1185,7 +1185,7 @@ function loadSellersAndHubs() {
       console.error("Error loading stored sellers:", e);
     }
   }
-  const storedHubs = localStorage.getItem("duka_hubs");
+  const storedHubs = localStorage.getItem("livepay_hubs");
   if (storedHubs) {
     try {
       const localHubs = JSON.parse(storedHubs);
@@ -1213,7 +1213,7 @@ function loadSellersAndHubs() {
           ACTIVE_SELLERS.push(cs);
         }
       });
-      localStorage.setItem("duka_sellers", JSON.stringify(ACTIVE_SELLERS));
+      localStorage.setItem("livepay_sellers", JSON.stringify(ACTIVE_SELLERS));
       populateDropdowns(); // Re-populate UI dropdowns
     }).catch(err => console.log("Sellers fetch failed or offline:", err));
 
@@ -1229,7 +1229,7 @@ function loadSellersAndHubs() {
           COLLECTION_POINTS.push(ch);
         }
       });
-      localStorage.setItem("duka_hubs", JSON.stringify(COLLECTION_POINTS));
+      localStorage.setItem("livepay_hubs", JSON.stringify(COLLECTION_POINTS));
       populateDropdowns(); // Re-populate UI dropdowns
     }).catch(err => console.log("Hubs fetch failed or offline:", err));
   }
@@ -1288,7 +1288,7 @@ function registerNewSeller(event) {
 
   // Add locally instantly
   ACTIVE_SELLERS.push(newSeller);
-  localStorage.setItem("duka_sellers", JSON.stringify(ACTIVE_SELLERS));
+  localStorage.setItem("livepay_sellers", JSON.stringify(ACTIVE_SELLERS));
 
   // Sync in background with Firestore
   if (db) {
@@ -1303,7 +1303,7 @@ function registerNewSeller(event) {
   showToast(`Shop "${name}" successfully registered!`, "success");
   
   // Auto login newly registered seller session
-  localStorage.setItem("duka_auth_seller", JSON.stringify(newSeller));
+  localStorage.setItem("livepay_auth_seller", JSON.stringify(newSeller));
   checkSellerAuth();
   
   // Auto-switch selector to the newly registered seller on the seller dashboard
@@ -1359,7 +1359,7 @@ function registerNewCourier(event) {
 
   // Add locally instantly
   COLLECTION_POINTS.push(newHub);
-  localStorage.setItem("duka_hubs", JSON.stringify(COLLECTION_POINTS));
+  localStorage.setItem("livepay_hubs", JSON.stringify(COLLECTION_POINTS));
 
   // Sync in background with Firestore
   if (db) {
@@ -1374,7 +1374,7 @@ function registerNewCourier(event) {
   showToast(`Courier Depot "${name}" registered successfully!`, "courier");
 
   // Auto login newly registered courier depot session
-  localStorage.setItem("duka_auth_courier", JSON.stringify(newHub));
+  localStorage.setItem("livepay_auth_courier", JSON.stringify(newHub));
   checkCourierAuth();
 }
 
@@ -1384,7 +1384,7 @@ function registerNewCourier(event) {
 
 // Verify Seller Authentication
 function checkSellerAuth() {
-  const authSellerStr = localStorage.getItem("duka_auth_seller");
+  const authSellerStr = localStorage.getItem("livepay_auth_seller");
   const authGate = document.getElementById("seller-auth-gate");
   const dashContent = document.getElementById("seller-dashboard-content");
 
@@ -1448,7 +1448,7 @@ function handleSellerLogin(event) {
 
   const seller = ACTIVE_SELLERS.find(s => s.PochiPhone === phone && s.pin === pin);
   if (seller) {
-    localStorage.setItem("duka_auth_seller", JSON.stringify(seller));
+    localStorage.setItem("livepay_auth_seller", JSON.stringify(seller));
     showToast(`Welcome back, ${seller.name}!`, "success");
 
     // Clear login inputs
@@ -1463,14 +1463,14 @@ function handleSellerLogin(event) {
 
 // Handle Seller Log Out
 function handleSellerLogout() {
-  localStorage.removeItem("duka_auth_seller");
+  localStorage.removeItem("livepay_auth_seller");
   showToast("Logged out of Merchant Control Panel", "success");
   checkSellerAuth();
 }
 
 // Verify Courier Authentication
 function checkCourierAuth() {
-  const authCourierStr = localStorage.getItem("duka_auth_courier");
+  const authCourierStr = localStorage.getItem("livepay_auth_courier");
   const authGate = document.getElementById("courier-auth-gate");
   const dashContent = document.getElementById("courier-dashboard-content");
 
@@ -1502,7 +1502,7 @@ function handleCourierLogin(event) {
 
   const hub = COLLECTION_POINTS.find(h => h.PochiPhone === phone && h.pin === pin);
   if (hub) {
-    localStorage.setItem("duka_auth_courier", JSON.stringify(hub));
+    localStorage.setItem("livepay_auth_courier", JSON.stringify(hub));
     showToast(`Courier Depot "${hub.name}" unlocked!`, "courier");
 
     // Clear login inputs
@@ -1517,7 +1517,7 @@ function handleCourierLogin(event) {
 
 // Handle Courier Log Out
 function handleCourierLogout() {
-  localStorage.removeItem("duka_auth_courier");
+  localStorage.removeItem("livepay_auth_courier");
   showToast("Logged out of Courier Portal", "courier");
   checkCourierAuth();
 }

@@ -1,6 +1,6 @@
 {
-  "name": "Duka Online Live Shopping PWA",
-  "short_name": "Duka Online",
+  "name": "livePAY Live Shopping PWA",
+  "short_name": "livePAY",
   "description": "Premium live-shopping matching engine for M-PESA split payments and delivery logistics.",
   "start_url": "./index.html",
   "display": "standalone",

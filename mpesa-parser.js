@@ -40,7 +40,7 @@ class MpesaParser {
     // Determine the payment type and name extraction
     let mpesaSender = "Unknown Buyer";
     let paymentMethod = "M-PESA Direct";
-    let paymentRecipient = "Duka Online";
+    let paymentRecipient = "livePAY";
 
     if (text.toLowerCase().includes("pochi la biashara")) {
       paymentMethod = "Pochi la Biashara";
@@ -64,7 +64,7 @@ class MpesaParser {
       }
     } else if (text.toLowerCase().includes("sent to") && text.toLowerCase().includes("account")) {
       paymentMethod = "M-PESA Paybill";
-      // E.g. "...sent to Duka Online for account 0701122334..."
+      // E.g. "...sent to livePAY for account 0701122334..."
       const recipientMatch = text.match(/sent to\s+([A-Z0-9\s'&]+?)\s+for account/i);
       if (recipientMatch) {
         paymentRecipient = recipientMatch[1].trim();
@@ -105,7 +105,7 @@ class MpesaParser {
    * - Product amount = buyer product price (100% goes to Seller)
    * - Courier fee = total paid - product price
    * - Courier Partner share = 50% of courier fee
-   * - Platform App fee (Safaricom) = 50% of courier fee
+   * - Platform App fee (livePAY Provider) = 50% of courier fee
    * 
    * @param {object} parsedSMS Extracted M-PESA details
    * @param {object} buyerForm Buyer's pre-filled checkout details
@@ -140,6 +140,9 @@ class MpesaParser {
       splitSeller: splitSeller,
       splitCourier: splitCourier,
       splitPlatform: splitPlatform,
+      sellerPochi: buyerForm.merchantPhone || parsedSMS.paymentRecipient,
+      courierPochi: buyerForm.courierPochi || "0722000005",
+      platformPochi: buyerForm.platformPochi || "0711000000",
       status: "Ready for Dispatch",
       matched: true
     };
