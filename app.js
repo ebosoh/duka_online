@@ -1,1428 +1,765 @@
-/**
- * DUKA ONLINE - CORE APPLICATION CONTROLLER (FLATTENED & LIVE-TUNED)
- * Optimized for TikTok/FB Live shopping, Pochi la Biashara peer-to-peer transfers, and instant courier matching.
- */
+import { GoogleSheetAdapter } from './google-sheet-adapter.js';
 
-// ==========================================================================
-// FIREBASE BACKEND CONFIGURATION
-// ==========================================================================
-// Hudson: Replace the placeholder config below with your actual Firebase Web Config
-// keys from your Firebase Console (Project Settings > Web App).
-const firebaseConfig = {
-  apiKey: "AIzaSyC0mY4xsh1miGiHQ3QfD7hPce-l_lLDOm0",
-  authDomain: "duka-online-154b7.firebaseapp.com",
-  projectId: "duka-online-154b7",
-  storageBucket: "duka-online-154b7.firebasestorage.app",
-  messagingSenderId: "838362381550",
-  appId: "1:838362381550:web:68cab39c90c1c3ef4c87ff",
-  measurementId: "G-EXBGB8Q71R"
-};
+// Main Application Logic
+class App {
+    constructor() {
+        this.db = new GoogleSheetAdapter(CONFIG.sheetID, CONFIG.googleScriptUrl);
+        this.products = [];
+        this.cart = JSON.parse(localStorage.getItem('copier_maximum_cart')) || [];
+        this.currentProductPage = 1;
+        this.currentCategoryPage = 1;
 
-// Registered Merchants (Dynamic Live Show Channels)
-let ACTIVE_SELLERS = [];
-
-// Global State Variables
-let transactions = [];
-let products = [];
-let currentRole = "buyer"; 
-let pendingSTKPush = null; 
-let deferredInstallPrompt = null; 
-let db = null; // Firebase Firestore Reference
-let firestoreUnsubscribe = null; // Firestore listener teardown
-let selectedMerchantId = "seller-1"; // Active channel buyer is paying
-let activeSellerChannel = "0722987654"; // Pochi phone number of active seller dashboard
-
-const GA4_PROPERTY_ID = "G-FS40Z82Q3E"; // Pre-saved GA4 ID
-
-// ==========================================================================
-// INITIALIZATION & LIFECYCLE
-// ==========================================================================
-document.addEventListener("DOMContentLoaded", () => {
-  initPWA();
-  initAnalytics();
-  initFirebase();
-  loadData();
-  setupEventListeners();
-  populateDropdowns();
-  autoSelectSellerFromUrl(); // Automatically route URL parameters e.g., ?seller=grogan
-  switchRole("buyer"); // Default to buyer view
-  startCourierTimerLoop(); // Start real-time dispatch timeline counters
-});
-
-// PWA & Service Worker registration
-function initPWA() {
-  if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js")
-        .then((reg) => console.log("[PWA] Service Worker registered in root:", reg.scope))
-        .catch((err) => console.error("[PWA] Service Worker registration failed:", err));
-    });
-  }
-
-  window.addEventListener("beforeinstallprompt", (e) => {
-    e.preventDefault();
-    deferredInstallPrompt = e;
-    const installBanner = document.getElementById("pwa-install-banner");
-    if (installBanner) installBanner.style.display = "flex";
-  });
-}
-
-// GA4 Hook
-function initAnalytics() {
-  const propertyId = GA4_PROPERTY_ID || new URLSearchParams(window.location.search).get("ga4");
-  if (propertyId) {
-    const script = document.createElement("script");
-    script.async = true;
-    script.src = `https://www.googletagmanager.com/gtag/js?id=${propertyId}`;
-    document.head.appendChild(script);
-
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-    gtag('config', propertyId);
-  }
-}
-
-function trackEvent(eventName, eventParams = {}) {
-  console.log(`[GA4 Event] ${eventName}:`, eventParams);
-  if (typeof gtag === "function") {
-    gtag("event", eventName, eventParams);
-  }
-}
-
-// Initialize Firebase Cloud Backend (with local fallback)
-function initFirebase() {
-  if (typeof firebase !== "undefined" && firebaseConfig.projectId) {
-    try {
-      firebase.initializeApp(firebaseConfig);
-      db = firebase.firestore();
-      console.log("[Firebase Backend] Cloud Firestore initialized successfully.");
-      showToast("Firebase Cloud Connected! Real-time syncing active.", "success");
-    } catch (err) {
-      console.error("[Firebase Backend] Initialization failed:", err);
-      showToast("Firebase initialization error. Running in local simulation mode.", "error");
+        this.init();
     }
-  } else {
-    console.log("[Firebase Backend] Config empty. Running in simulated local-fallback mode.");
-  }
-}
 
-// Load seed data or subscribe to Firestore live sync
-function loadData() {
-  loadSellersAndHubs();
-  if (db) {
-    if (firestoreUnsubscribe) firestoreUnsubscribe();
-    
-    // Listen to changes on "transactions" collection in real time
-    firestoreUnsubscribe = db.collection("transactions")
-      .orderBy("timestamp", "desc")
-      .onSnapshot((snapshot) => {
-        let oldLength = transactions.length;
-        transactions = [];
-        snapshot.forEach((doc) => {
-          transactions.push({ firestoreId: doc.id, ...doc.data() });
+    async init() {
+        // UI Bindings
+        this.bindEvents();
+        this.updateCartBadge(); // Initialize cart badges from local storage
+
+        // Initial Render
+        this.renderCategories(); // Static categories for now
+
+        // Fetch Data
+        await this.loadProducts();
+    }
+
+    bindEvents() {
+        // Mobile Menu
+        const menuBtn = document.querySelector('.mobile-menu-toggle');
+        const nav = document.querySelector('.desktop-nav');
+        if (menuBtn && nav) {
+            menuBtn.addEventListener('click', () => {
+                nav.classList.toggle('hidden-mobile');
+                nav.classList.toggle('mobile-active');
+            });
+
+            // Close mobile menu when links are clicked
+            nav.querySelectorAll('a').forEach(link => {
+                link.addEventListener('click', () => {
+                    if (nav.classList.contains('mobile-active')) {
+                        nav.classList.add('hidden-mobile');
+                        nav.classList.remove('mobile-active');
+                    }
+                });
+            });
+        }
+
+        // Search Toggle
+        const searchBtn = document.querySelector('.search-toggle');
+        if (searchBtn) {
+            searchBtn.addEventListener('click', () => this.toggleSearch());
+        }
+
+        // Search Input (Dynamic creation if needed, or check existing)
+        // We will inject a search bar if not present
+        if (!document.getElementById('search-bar')) {
+            const bar = document.createElement('div');
+            bar.id = 'search-bar';
+            bar.className = 'container hidden';
+            bar.style.padding = '1rem 0';
+            bar.innerHTML = `<input type="text" id="search-input" placeholder="Search products..." style="width:100%; padding:1rem; border:2px solid var(--accent-color); border-radius: var(--radius-md);">`;
+            document.querySelector('.main-header').after(bar);
+
+            document.getElementById('search-input').addEventListener('input', (e) => this.handleSearch(e.target.value));
+        }
+
+        // Cart Toggle -> WhatsApp Checkout
+        const cartBtn = document.querySelector('.cart-toggle');
+        if (cartBtn) {
+            cartBtn.addEventListener('click', () => {
+                this.checkoutWhatsApp();
+            });
+        }
+
+        // Active Menu Highlighting (ScrollSpy & Hash)
+        window.addEventListener('hashchange', () => this.highlightMenu());
+        window.addEventListener('scroll', () => this.handleScrollSpy());
+        this.highlightMenu(); // Run on load
+        this.initHeroCarousel(); // Start Hero Carousel
+        this.initTestimonialsCarousel(); // Start Testimonials Carousel
+    }
+
+    /* --- Hero Carousel Logic --- */
+    initHeroCarousel() {
+        this.currentHeroSlide = 0;
+        this.heroSlides = document.querySelectorAll('.hero-slide');
+        this.heroIndicators = document.querySelectorAll('.carousel-indicators button');
+
+        if (this.heroSlides.length === 0) return;
+        if (this.heroSlides.length === 1) return; // Don't autoplay if only 1 slide
+
+        // Autoplay
+        this.startHeroCarousel();
+    }
+
+    startHeroCarousel() {
+        if (this.heroInterval) clearInterval(this.heroInterval);
+        this.heroInterval = setInterval(() => this.nextHeroSlide(), 5000);
+    }
+
+    goToHeroSlide(index) {
+        if (!this.heroSlides || this.heroSlides.length === 0) return;
+
+        // Reset Interval on manual interaction
+        this.startHeroCarousel();
+
+        // Update classes for current slide (Hide)
+        const current = this.heroSlides[this.currentHeroSlide];
+        current.classList.remove('active', 'opacity-100');
+        current.classList.add('opacity-0');
+
+        if (this.heroIndicators[this.currentHeroSlide]) {
+            const ind = this.heroIndicators[this.currentHeroSlide];
+            ind.classList.remove('active', 'bg-white', 'opacity-100');
+            ind.classList.add('bg-white/50');
+        }
+
+        // Update Index
+        this.currentHeroSlide = index;
+
+        // Update classes for new slide (Show)
+        const next = this.heroSlides[this.currentHeroSlide];
+        next.classList.add('active', 'opacity-100');
+        next.classList.remove('opacity-0');
+
+        if (this.heroIndicators[this.currentHeroSlide]) {
+            const ind = this.heroIndicators[this.currentHeroSlide];
+            ind.classList.add('active', 'bg-white', 'opacity-100');
+            ind.classList.remove('bg-white/50');
+        }
+    }
+
+    nextHeroSlide() {
+        let nextIndex = (this.currentHeroSlide + 1) % this.heroSlides.length;
+        this.goToHeroSlide(nextIndex);
+    }
+
+    /* --- Testimonials Carousel Logic --- */
+    initTestimonialsCarousel() {
+        this.currentTestimonial = 0;
+        this.testimonialSlides = document.querySelectorAll('.testimonial-slide');
+        this.testimonialIndicators = document.querySelectorAll('.testimonials-indicators button');
+
+        if (this.testimonialSlides.length === 0) return;
+        if (this.testimonialSlides.length === 1) return; // Don't autoplay if only 1 slide
+
+        // Autoplay
+        this.startTestimonialsCarousel();
+    }
+
+    startTestimonialsCarousel() {
+        if (this.testimonialInterval) clearInterval(this.testimonialInterval);
+        this.testimonialInterval = setInterval(() => this.nextTestimonial(), 7000);
+    }
+
+    goToTestimonial(index) {
+        if (!this.testimonialSlides || this.testimonialSlides.length === 0) return;
+
+        // Reset Interval on manual interaction
+        this.startTestimonialsCarousel();
+
+        // Update classes for current slide (Hide)
+        const current = this.testimonialSlides[this.currentTestimonial];
+        current.classList.remove('active');
+
+        if (this.testimonialIndicators[this.currentTestimonial]) {
+            this.testimonialIndicators[this.currentTestimonial].classList.remove('active');
+        }
+
+        // Update Index
+        this.currentTestimonial = index;
+
+        // Update classes for new slide (Show)
+        const next = this.testimonialSlides[this.currentTestimonial];
+        next.classList.add('active');
+
+        if (this.testimonialIndicators[this.currentTestimonial]) {
+            this.testimonialIndicators[this.currentTestimonial].classList.add('active');
+        }
+    }
+
+    nextTestimonial() {
+        if (!this.testimonialSlides || this.testimonialSlides.length === 0) return;
+        let nextIndex = (this.currentTestimonial + 1) % this.testimonialSlides.length;
+        this.goToTestimonial(nextIndex);
+    }
+
+    prevTestimonial() {
+        if (!this.testimonialSlides || this.testimonialSlides.length === 0) return;
+        let prevIndex = (this.currentTestimonial - 1 + this.testimonialSlides.length) % this.testimonialSlides.length;
+        this.goToTestimonial(prevIndex);
+    }
+
+    handleScrollSpy() {
+        // Disable Spy on Product Page
+        if (window.location.pathname.includes('product.html')) return;
+
+        const sections = ['home', 'shop', 'services', 'contact'];
+        let current = '';
+
+        // Find the section currently in view
+        for (const section of sections) {
+            const el = document.getElementById(section);
+            if (el) {
+                const rect = el.getBoundingClientRect();
+                // If top of section is within viewport (with some offset for header)
+                if (rect.top <= 180 && rect.bottom >= 180) {
+                    current = section;
+                    break;
+                }
+            }
+        }
+
+        // Fallback for bottom of page
+        if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 50) {
+            current = 'contact';
+        }
+
+        if (current) {
+            this.updateActiveLink(`#${current}`);
+        }
+    }
+
+    updateActiveLink(hash) {
+        const links = document.querySelectorAll('.desktop-nav a');
+        const path = window.location.pathname;
+
+        links.forEach(link => {
+            link.classList.remove('active');
+            const href = link.getAttribute('href');
+
+            if (!href) return; // Safety check
+
+            // Product Page Logic
+            if (path.includes('product.html')) {
+                if (href.includes('shop')) link.classList.add('active');
+                return;
+            }
+
+            // Index Page Logic
+            // Clean href to just hash check if local
+            const isHome = hash === '#home' && (href === 'index.html' || href === '#home' || href === '/' || href === './');
+            const isMatch = (href === hash) || (href.endsWith(hash) && href !== 'index.html'); // Avoid index.html matching everything
+
+            if (isMatch || isHome) {
+                link.classList.add('active');
+            }
         });
-        console.log(`[Firebase Backend] Received ${transactions.length} sync logs.`);
-        
-        // Trigger live audio/visual banner alert for new matched transaction belonging to active channel
-        if (transactions.length > oldLength && oldLength > 0) {
-          const latest = transactions[0];
-          if (latest.matched && (latest.merchantPhone === activeSellerChannel)) {
-            triggerFomoNotification(latest);
-          }
+    }
+
+    highlightMenu() {
+        // Initial Load Logic
+        if (window.location.pathname.includes('product.html')) {
+            this.updateActiveLink('#shop'); // Dummy hash to trigger shop logic
+            return;
         }
-        
-        renderApp();
-      }, (error) => {
-        console.error("[Firebase Backend] Real-time sync error:", error);
-        loadLocalFallback();
-      });
-  } else {
-    loadLocalFallback();
-  }
-}
 
-// Fallback logic using LocalStorage
-function loadLocalFallback() {
-  const storedTxns = localStorage.getItem("duka_transactions");
-  if (storedTxns) {
-    transactions = JSON.parse(storedTxns);
-  } else if (typeof INITIAL_TRANSACTIONS !== "undefined" && INITIAL_TRANSACTIONS.length > 0) {
-    transactions = INITIAL_TRANSACTIONS.map((txn) => {
-      const seedSeller = ACTIVE_SELLERS[0] || { id: "none", name: "None", PochiPhone: "" };
-      return {
-        ...txn,
-        merchantId: seedSeller.id,
-        merchantName: seedSeller.name,
-        merchantPhone: seedSeller.PochiPhone
-      };
-    });
-    saveLocalFallback();
-  }
-}
-
-function saveLocalFallback() {
-  localStorage.setItem("duka_transactions", JSON.stringify(transactions));
-}
-
-// Populate dropdown options
-function populateDropdowns() {
-  // Populate Buyer Checkout Seller Selector
-  const buyerSellerSelect = document.getElementById("checkout-live-seller");
-  if (buyerSellerSelect) {
-    const savedValue = buyerSellerSelect.value;
-    buyerSellerSelect.innerHTML = "";
-    ACTIVE_SELLERS.forEach((seller) => {
-      const option = document.createElement("option");
-      option.value = seller.id;
-      option.textContent = `${seller.name} (${seller.avatar})`;
-      buyerSellerSelect.appendChild(option);
-    });
-    if (savedValue && ACTIVE_SELLERS.some(s => s.id === savedValue)) {
-      buyerSellerSelect.value = savedValue;
+        const hash = window.location.hash || '#home';
+        this.updateActiveLink(hash);
     }
-  }
 
-  // Populate Seller Channel Filter Selector
-  const sellerChannelSelector = document.getElementById("seller-channel-selector");
-  if (sellerChannelSelector) {
-    const savedValue = sellerChannelSelector.value;
-    sellerChannelSelector.innerHTML = "";
-    ACTIVE_SELLERS.forEach((seller) => {
-      const option = document.createElement("option");
-      option.value = seller.PochiPhone;
-      option.textContent = `${seller.name} (${seller.PochiPhone})`;
-      sellerChannelSelector.appendChild(option);
-    });
-    if (savedValue && ACTIVE_SELLERS.some(s => s.PochiPhone === savedValue)) {
-      sellerChannelSelector.value = savedValue;
+    toggleSearch() {
+        const bar = document.getElementById('search-bar');
+        if (bar) bar.classList.toggle('hidden');
+        const input = document.getElementById('search-input');
+        if (input && !bar.classList.contains('hidden')) input.focus();
     }
-  }
 
-  // Populate Collection Points
-  const collectionSelect = document.getElementById("checkout-collection-point");
-  if (collectionSelect) {
-    const savedValue = collectionSelect.value;
-    collectionSelect.innerHTML = "";
-    
-    const defaultOption = document.createElement("option");
-    defaultOption.value = "";
-    defaultOption.disabled = true;
-    if (!savedValue) {
-      defaultOption.selected = true;
-    }
-    defaultOption.textContent = "-- Choose Pickup Hub --";
-    collectionSelect.appendChild(defaultOption);
+    triggerSearch() {
+        const query = document.getElementById('global-search').value;
+        const category = document.getElementById('global-category').value;
 
-    COLLECTION_POINTS.forEach((hub) => {
-      const option = document.createElement("option");
-      option.value = hub.id;
-      option.textContent = `${hub.name} (+ KES ${hub.fee})`;
-      collectionSelect.appendChild(option);
-    });
-    if (savedValue && COLLECTION_POINTS.some(h => h.id === savedValue)) {
-      collectionSelect.value = savedValue;
-    }
-  }
+        let filtered = this.products;
 
-  // Ensure URL parameter auto-selection is executed after dropdown populates/updates
-  autoSelectSellerFromUrl();
-}
-
-// Dynamically route and auto-select seller from URL parameters (e.g. ?seller=grogan or ?seller=0722987654)
-function autoSelectSellerFromUrl() {
-  const urlParams = new URLSearchParams(window.location.search);
-  const sellerQuery = urlParams.get("seller");
-  
-  if (sellerQuery) {
-    const cleanQuery = sellerQuery.trim().toLowerCase();
-    
-    // Scan matching seller by ID, shortName, or Pochi phone
-    const matchedSeller = ACTIVE_SELLERS.find(s => 
-      s.id.toLowerCase() === cleanQuery || 
-      s.shortName.toLowerCase() === cleanQuery || 
-      s.PochiPhone === cleanQuery
-    );
-    
-    if (matchedSeller) {
-      const selectEl = document.getElementById("checkout-live-seller");
-      if (selectEl) {
-        if (selectEl.value !== matchedSeller.id) {
-          selectEl.value = matchedSeller.id;
-          handleCheckoutSellerChange();
-          console.log(`[URL Dispatcher] Auto-routing connected. Streamer channel loaded: ${matchedSeller.name}`);
+        if (category) {
+            filtered = filtered.filter(p => p.category === category);
         }
-      }
-    }
-  }
-}
 
-// ==========================================================================
-// VIEWS ROUTER & ROLE SWITCHER
-// ==========================================================================
-function switchRole(role) {
-  currentRole = role;
-  
-  document.querySelectorAll(".nav-btn").forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.role === role);
-  });
-
-  document.querySelectorAll(".view-panel").forEach((panel) => {
-    panel.classList.toggle("active", panel.id === `${role}-view`);
-  });
-
-  trackEvent("role_view_changed", { role: role });
-
-  if (role === "buyer") {
-    document.body.style.backgroundColor = "var(--bg-light)";
-  } else {
-    document.body.style.backgroundColor = "var(--bg-dark)";
-  }
-
-  renderApp();
-}
-
-function renderApp() {
-  if (currentRole === "buyer") {
-    renderBuyerPortal();
-  } else if (currentRole === "seller") {
-    renderSellerDashboard();
-  } else if (currentRole === "courier") {
-    renderCourierDashboard();
-  }
-}
-
-// ==========================================================================
-// BUYER LIVE CHECKOUT FLOW (Direct Pochi Routing)
-// ==========================================================================
-function renderBuyerPortal() {
-  const sellerSelect = document.getElementById("checkout-live-seller");
-  if (!sellerSelect) return;
-
-  const seller = ACTIVE_SELLERS.find((s) => s.id === sellerSelect.value) || ACTIVE_SELLERS[0];
-  
-  // Update streamer welcome details
-  const streamerName = document.getElementById("streamer-name-tag");
-  if (streamerName) {
-    streamerName.textContent = `Checkout for: ${seller.name}`;
-  }
-
-  // Programmatic reinforcement to hide instructions and ads cards on all mobile devices (under 768px)
-  const instructionsWrapper = document.querySelector(".buyer-instructions-wrapper");
-  const mobileBlinkingBadge = document.querySelector(".blinking-mobile-badge");
-  if (instructionsWrapper) {
-    if (window.innerWidth < 768) {
-      instructionsWrapper.style.setProperty("display", "none", "important");
-      if (mobileBlinkingBadge) {
-        mobileBlinkingBadge.style.setProperty("display", "inline-flex", "important");
-      }
-    } else {
-      instructionsWrapper.style.removeProperty("display");
-      if (mobileBlinkingBadge) {
-        mobileBlinkingBadge.style.removeProperty("display");
-      }
-    }
-  }
-}
-
-function handleCheckoutSellerChange() {
-  const sellerSelect = document.getElementById("checkout-live-seller");
-  if (!sellerSelect) return;
-
-  const seller = ACTIVE_SELLERS.find((s) => s.id === sellerSelect.value);
-  if (seller) {
-    // Leave fields empty because item names and prices are random values entered explicitly by the buyer
-    document.getElementById("buyer-form-item-name").value = "";
-    document.getElementById("buyer-form-bid-price").value = "";
-    
-    showToast(`Paying Seller Channel: ${seller.name}`, "success");
-    
-    renderBuyerPortal();
-    updateCheckoutPricing();
-  }
-}
-
-function updateCheckoutPricing() {
-  const bidPriceInput = document.getElementById("buyer-form-bid-price");
-  const collectionSelect = document.getElementById("checkout-collection-point");
-  
-  if (!bidPriceInput || !collectionSelect) return;
-
-  const bidPrice = parseFloat(bidPriceInput.value) || 0;
-  const selectedHubId = collectionSelect.value;
-  const hub = COLLECTION_POINTS.find((h) => h.id === selectedHubId);
-  const deliveryFee = hub ? hub.fee : 0;
-  const totalPrice = bidPrice + deliveryFee;
-
-  document.getElementById("breakdown-prod-price").textContent = `KES ${bidPrice.toLocaleString()}`;
-  document.getElementById("breakdown-delivery-fee").textContent = `KES ${deliveryFee.toLocaleString()}`;
-  document.getElementById("breakdown-total-price").textContent = `KES ${totalPrice.toLocaleString()}`;
-}
-
-// Trigger STK push prompt for buyer
-function triggerBuyerCheckout(event) {
-  event.preventDefault();
-  
-  const name = document.getElementById("buyer-form-name").value.trim();
-  const contact = document.getElementById("buyer-form-contact").value.trim();
-  const sellerSelect = document.getElementById("checkout-live-seller");
-  const itemName = document.getElementById("buyer-form-item-name").value.trim();
-  const bidPrice = parseFloat(document.getElementById("buyer-form-bid-price").value) || 0;
-  const hubId = document.getElementById("checkout-collection-point").value;
-
-  if (!name || !contact || !sellerSelect.value || !itemName || bidPrice <= 0 || !hubId) {
-    showToast("Please fill in all Checkout details!", "error");
-    return;
-  }
-
-  const seller = ACTIVE_SELLERS.find((s) => s.id === sellerSelect.value);
-  const hub = COLLECTION_POINTS.find((h) => h.id === hubId);
-  
-  // Prepare global pending object
-  pendingSTKPush = {
-    buyerName: name,
-    buyerContact: contact,
-    merchantId: seller.id,
-    merchantName: seller.name,
-    merchantPhone: seller.PochiPhone,
-    productName: itemName,
-    productId: "custom",
-    productPrice: bidPrice,
-    deliveryFee: hub.fee,
-    totalPaid: bidPrice + hub.fee,
-    collectionPoint: hub.name,
-    courierPochi: hub.PochiPhone,
-    platformPochi: "0711000000"
-  };
-
-  trackEvent("checkout_stk_initiated", {
-    sellerName: seller.name,
-    itemName: itemName,
-    totalAmount: pendingSTKPush.totalPaid
-  });
-
-  const modal = document.getElementById("stk-push-modal");
-  const modalPromptText = document.getElementById("stk-prompt-text");
-  
-  if (modal && modalPromptText) {
-    modalPromptText.innerHTML = `Do you want to pay <strong>KES ${pendingSTKPush.totalPaid.toLocaleString()}</strong> directly to <strong>Pochi la Biashara ${seller.name} (${seller.PochiPhone})</strong>? <br><br>Enter your M-PESA PIN below to confirm payment:`;
-    document.getElementById("stk-pin-field").value = "";
-    modal.classList.add("active");
-  }
-}
-
-// Confirm checkout
-function confirmSimulatedPayment() {
-  const pinField = document.getElementById("stk-pin-field");
-  if (!pinField || pinField.value.length < 4) {
-    showToast("Please enter a valid 4-digit M-PESA PIN!", "error");
-    return;
-  }
-
-  document.getElementById("stk-push-modal").classList.remove("active");
-  showToast("STK Push Request processing...", "success");
-
-  setTimeout(() => {
-    const buyerData = pendingSTKPush;
-    if (!buyerData) return;
-
-    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-    let code = "QR" + Array.from({length: 8}, () => chars[Math.floor(Math.random() * chars.length)]).join("");
-    
-    const simulatedSMS = `${code} Confirmed. Ksh${buyerData.totalPaid.toLocaleString()}.00 sent to Pochi la Biashara ${buyerData.merchantName.toUpperCase()} ${buyerData.merchantPhone} on ${new Date().toLocaleDateString("en-KE")} at ${new Date().toLocaleTimeString("en-KE", { hour: "numeric", minute: "2-digit" })}. New M-PESA balance is Ksh154,200.00. Transaction cost Ksh0.00.`;
-
-    const parsedSMS = MpesaParser.parseSMS(simulatedSMS);
-    
-    if (parsedSMS) {
-      const mergedTxn = MpesaParser.mergeTransaction(parsedSMS, buyerData);
-      
-      mergedTxn.merchantId = buyerData.merchantId;
-      mergedTxn.merchantName = buyerData.merchantName;
-      mergedTxn.merchantPhone = buyerData.merchantPhone;
-
-      if (db) {
-        db.collection("transactions").add(mergedTxn)
-          .then((docRef) => {
-            console.log("[Firebase] Transaction uploaded:", docRef.id);
-            showToast(`Payment Approved! Ref: ${code}`, "success");
-            showToast(`SMS Auto-Merged with ${buyerData.collectionPoint} Destination.`, "courier");
-          })
-          .catch((err) => {
-            console.error("[Firebase] Upload failed, falling back:", err);
-            transactions.unshift(mergedTxn);
-            saveLocalFallback();
-            renderApp();
-          });
-      } else {
-        transactions.unshift(mergedTxn);
-        saveLocalFallback();
-        
-        if (mergedTxn.merchantPhone === activeSellerChannel) {
-          triggerFomoNotification(mergedTxn);
+        if (query) {
+            const lower = query.toLowerCase();
+            filtered = filtered.filter(p =>
+                p.name.toLowerCase().includes(lower) ||
+                (p.category && p.category.toLowerCase().includes(lower))
+            );
         }
+
+        this.renderProducts(filtered);
+
+        const shop = document.getElementById('shop');
+        if (shop) shop.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    handleSearch(query) {
+        if (!query) {
+            this.renderProducts(this.products);
+            return;
+        }
+        const lower = query.toLowerCase();
+        const filtered = this.products.filter(p =>
+            p.name.toLowerCase().includes(lower) ||
+            (p.category && p.category.toLowerCase().includes(lower))
+        );
+        this.renderProducts(filtered);
+    }
+
+    checkoutWhatsApp() {
+        if (this.cart.length === 0) {
+            alert("Your cart is empty.");
+            return;
+        }
+
+        // Prompt for customer phone number
+        const customerPhone = prompt("Please enter your phone number so we can reach you:\n(e.g. +254712345678)");
+        if (customerPhone === null) return; // User cancelled
+        if (!customerPhone.trim()) {
+            alert("A phone number is required to proceed with checkout.");
+            return;
+        }
+
+        // Build item list with prices
+        const counts = {};
+        this.cart.forEach(name => { counts[name] = (counts[name] || 0) + 1; });
+
+        let message = `📞 My Phone Number: ${customerPhone.trim()}\n\n`;
+        message += `Hello Copier Maximum Solutions, I would like to order the following:\n\n`;
+
+        let grandTotal = 0;
+        for (const [name, qty] of Object.entries(counts)) {
+            const product = this.products.find(p => p.name === name);
+            const unitPrice = product ? parseFloat(product.price) : 0;
+            const lineTotal = unitPrice * qty;
+            grandTotal += lineTotal;
+
+            const priceStr = unitPrice > 0
+                ? ` — KES ${unitPrice.toLocaleString()} x${qty} = KES ${lineTotal.toLocaleString()}`
+                : ` (x${qty})`;
+            message += `• ${name}${priceStr}\n`;
+        }
+
+        if (grandTotal > 0) {
+            message += `\n💰 Estimated Total: KES ${grandTotal.toLocaleString()}`;
+        }
+
+        message += `\n\nKindly confirm availability and arrange delivery. Thank you! 🙏`;
+
+        const waNumber = "254717520268";
+        const url = `https://wa.me/${waNumber}?text=${encodeURIComponent(message)}`;
+        window.open(url, '_blank');
+    }
+
+    async loadProducts() {
+        const productContainer = document.getElementById('products-container');
+        try {
+            this.products = await this.db.fetchProducts();
+
+            if (this.products.length === 0) {
+                // Mock Data if empty (for demonstration)
+                this.products = this.getMockData();
+            }
+
+            this.renderProducts(this.products);
+            this.updateHero(this.products);
+            this.renderCategories(); // Re-render categories to use real product images once fetched
+
+            // Load brand and testimonial settings dynamically
+            await this.loadBrandsAndTestimonials();
+
+        } catch (error) {
+            console.error("Failed to load products", error);
+            if (productContainer) productContainer.innerHTML = '<p class="error">Failed to load products. Please try again later.</p>';
+        }
+    }
+
+    async loadBrandsAndTestimonials() {
+        try {
+            const brands = await this.db.fetchBrands();
+            if (brands && brands.length > 0) {
+                this.renderBrands(brands);
+            }
+
+            const testimonials = await this.db.fetchTestimonials();
+            if (testimonials && testimonials.length > 0) {
+                this.renderTestimonials(testimonials);
+            }
+        } catch (e) {
+            console.error("Failed to load brands or testimonials", e);
+        }
+    }
+
+    renderBrands(brands) {
+        const container = document.querySelector('.brands-track');
+        if (!container) return;
+
+        // Duplicate the brands array to create a seamless infinite scrolling effect
+        const doubledBrands = [...brands, ...brands];
+
+        container.innerHTML = doubledBrands.map(b => {
+            const nameLower = b.name.toLowerCase();
+            const content = b.logo_url && b.logo_url.length > 10
+                ? `<img src="${b.logo_url}" alt="${b.name}" style="max-width:100%; max-height:100%; object-fit:contain;">`
+                : `<span class="brand-logo-text ${nameLower}">${b.name}</span>`;
+
+            return `
+                <div class="brand-item">
+                    ${content}
+                </div>
+            `;
+        }).join('');
+    }
+
+    renderTestimonials(list) {
+        const carousel = document.querySelector('.testimonials-carousel');
+        const indicators = document.querySelector('.testimonials-indicators');
+        if (!carousel || !indicators) return;
+
+        carousel.innerHTML = list.map((t, index) => {
+            const activeClass = index === 0 ? 'active' : '';
+            const ratingStars = Array(5).fill(0).map((_, i) => 
+                `<i class="fas fa-star" style="${i < parseInt(t.rating || 5) ? 'color: #FFB800' : 'color: #E2E8F0'}"></i>`
+            ).join('');
+
+            const avatar = t.photo_url && t.photo_url.length > 10
+                ? `<img src="${t.photo_url}" alt="${t.name}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`
+                : `<i class="fas fa-user"></i>`;
+
+            return `
+                <div class="testimonial-slide ${activeClass}">
+                    <div class="testimonial-rating">
+                        ${ratingStars}
+                    </div>
+                    <p class="testimonial-text">${t.text}</p>
+                    <div class="testimonial-author">
+                        <div class="author-avatar">${avatar}</div>
+                        <div class="author-info">
+                            <h4>${t.name}</h4>
+                            <span>${t.role || 'Verified Customer'}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        indicators.innerHTML = list.map((_, index) => `
+            <button class="${index === 0 ? 'active' : ''}" onclick="window.App.goToTestimonial(${index})"></button>
+        `).join('');
+
+        // Re-initialize testimonial carousel variables
+        this.initTestimonialsCarousel();
+    }
+
+    renderCategories(page = 1) {
+        const grid = document.getElementById('categories-grid');
+        if (!grid) return;
+
+        const categories = [
+            { name: "Refurbished Copiers", defaultImage: "commercial-copier.png" },
+            { name: "Drum units", defaultImage: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=300&auto=format&fit=crop&q=60" },
+            { name: "Kyocera B/W A4 Printers", defaultImage: "kyocera-new.png" },
+            { name: "Toner Refills", defaultImage: "https://images.unsplash.com/photo-1558655146-d09347e92766?w=300&auto=format&fit=crop&q=60" },
+            { name: "Toners", defaultImage: "https://images.unsplash.com/photo-1544256718-3bcf237f3974?w=300&auto=format&fit=crop&q=60" },
+            { name: "Accessories", defaultImage: "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=300&auto=format&fit=crop&q=60" },
+            { name: "Brand New Copiers", defaultImage: "kyocera-new.png" },
+            { name: "Laptops & Computers", defaultImage: "https://images.unsplash.com/photo-1496181130204-755241544e35?w=300&auto=format&fit=crop&q=60" },
+            { name: "Spare Parts", defaultImage: "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=300&auto=format&fit=crop&q=60" },
+            { name: "Office Printers", defaultImage: "https://images.unsplash.com/photo-1612815154858-60aa4c59eaa6?w=300&auto=format&fit=crop&q=60" }
+        ];
+
+        this.currentCategoryPage = page;
+        const limit = 10;
+        const totalItems = categories.length;
+        const totalPages = Math.ceil(totalItems / limit);
+
+        if (page < 1) page = 1;
+        if (page > totalPages && totalPages > 0) page = totalPages;
+        this.currentCategoryPage = page;
+
+        const startIndex = (page - 1) * limit;
+        const endIndex = startIndex + limit;
+        const displayCategories = categories.slice(startIndex, endIndex);
+
+        grid.innerHTML = displayCategories.map(cat => {
+            // Find a product in this category to get a real image from the Google Sheet
+            const productInCat = this.products.find(p => p.category === cat.name);
+            let img = cat.defaultImage;
+            if (productInCat && productInCat.images) {
+                const firstImg = productInCat.images.split(',')[0];
+                if (firstImg && firstImg.length > 5) {
+                    img = firstImg;
+                }
+            }
+
+            return `
+                <div class="category-card" onclick="window.App.handleSearch('${cat.name}'); document.getElementById('shop').scrollIntoView({ behavior: 'smooth' });" style="cursor:pointer;">
+                    <div class="category-image-wrapper">
+                        <img src="${img}" alt="${cat.name}" class="category-img">
+                    </div>
+                    <div class="category-info-overlay">
+                        <h3>${cat.name}</h3>
+                        <span class="explore-btn">Explore <i class="fas fa-arrow-right"></i></span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        this.renderCategoriesPagination(categories, totalPages, page);
+    }
+
+    renderCategoriesPagination(categories, totalPages, currentPage) {
+        const paginationContainer = document.getElementById('categories-pagination');
+        if (!paginationContainer) return;
+
+        if (totalPages <= 1) {
+            paginationContainer.innerHTML = '';
+            return;
+        }
+
+        let html = '';
         
-        renderApp();
-        showToast(`Payment Approved! Ref: ${code}`, "success");
-        showToast(`SMS Auto-Merged with ${buyerData.collectionPoint} Destination.`, "courier");
-      }
+        // Prev button
+        html += `<button class="page-btn" ${currentPage === 1 ? 'disabled' : ''} data-page="${currentPage - 1}"><i class="fas fa-chevron-left"></i></button>`;
 
-      const smsTextarea = document.getElementById("sms-input-field");
-      if (smsTextarea) {
-        smsTextarea.value = simulatedSMS;
-      }
+        // Page buttons
+        for (let i = 1; i <= totalPages; i++) {
+            html += `<button class="page-btn ${currentPage === i ? 'active' : ''}" data-page="${i}">${i}</button>`;
+        }
 
-      trackEvent("payment_completed", {
-        transactionId: mergedTxn.id,
-        amount: mergedTxn.totalPaid,
-        seller: buyerData.merchantName
-      });
+        // Next button
+        html += `<button class="page-btn" ${currentPage === totalPages ? 'disabled' : ''} data-page="${currentPage + 1}"><i class="fas fa-chevron-right"></i></button>`;
 
-      // Clear forms
-      document.getElementById("buyer-form-name").value = "";
-      document.getElementById("buyer-form-contact").value = "";
-      document.getElementById("buyer-form-item-name").value = "";
-      document.getElementById("buyer-form-bid-price").value = "";
-      document.getElementById("checkout-collection-point").selectedIndex = 0;
-      updateCheckoutPricing();
+        paginationContainer.innerHTML = html;
 
-      pendingSTKPush = null;
-    }
-  }, 1200);
-}
-
-// ==========================================================================
-// SELLER MULTI-MERCHANT DASHBOARD
-// ==========================================================================
-function handleSellerChannelChange() {
-  const sellerChannelSelector = document.getElementById("seller-channel-selector");
-  if (sellerChannelSelector) {
-    activeSellerChannel = sellerChannelSelector.value;
-    const seller = ACTIVE_SELLERS.find(s => s.PochiPhone === activeSellerChannel);
-    showToast(`Switched active matching channel to: ${seller.name}`, "success");
-    renderSellerDashboard();
-  }
-}
-
-function renderSellerDashboard() {
-  if (!checkSellerAuth()) return;
-  const merchantTxns = transactions.filter((t) => t.merchantPhone === activeSellerChannel);
-
-  let totalProductSales = 0;
-  let totalShippingFee = 0;
-
-  merchantTxns.forEach((t) => {
-    if (t.matched) {
-      totalProductSales += t.productAmountPaid;
-      totalShippingFee += t.courierFeePaid;
-    }
-  });
-
-  const sellerSalesVal = document.getElementById("seller-sales-value");
-  const sellerShippingVal = document.getElementById("seller-shipping-value");
-
-  if (sellerSalesVal) sellerSalesVal.textContent = `KES ${totalProductSales.toLocaleString()}`;
-  if (sellerShippingVal) sellerShippingVal.textContent = `KES ${totalShippingFee.toLocaleString()}`;
-
-  const tableBody = document.getElementById("seller-txn-table-body");
-  if (!tableBody) return;
-
-  tableBody.innerHTML = "";
-
-  if (merchantTxns.length === 0) {
-    tableBody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--text-dark-secondary);">No payments matched for this channel yet. Live show is waiting...</td></tr>`;
-    return;
-  }
-
-  merchantTxns.forEach((txn) => {
-    tableBody.innerHTML += `
-      <tr>
-        <td><strong style="color:#FFF;">${txn.mpesaCode || "PENDING"}</strong></td>
-        <td>
-          <div style="font-weight: 600;">${txn.buyerName}</div>
-          <div style="font-size: 0.75rem; color: var(--text-dark-secondary);">${txn.buyerContact}</div>
-        </td>
-        <td>
-          <div style="font-weight: 700; color:var(--secondary-orange);">${txn.productName}</div>
-          <div style="font-size: 0.75rem; color: var(--text-dark-secondary);">Product: KES ${txn.productAmountPaid.toLocaleString()}</div>
-        </td>
-        <td><span style="font-family: 'Outfit'; font-weight:700;">KES ${txn.totalPaid.toLocaleString()}</span></td>
-        <td>
-          <div style="font-size: 0.85rem; font-weight:600; color: var(--primary-green);">🛒 Sales Share: KES ${txn.productAmountPaid.toLocaleString()}</div>
-          <div style="font-size: 0.75rem; color: var(--text-dark-secondary);">🚚 Shipping Fee: KES ${txn.courierFeePaid.toLocaleString()}</div>
-        </td>
-        <td>
-          <span style="font-size:0.8rem; font-weight:500;">${txn.collectionPoint}</span>
-        </td>
-        <td>
-          <span class="badge ${txn.matched ? 'matched' : 'unmatched'}">${txn.matched ? 'Merged' : 'SMS Pending'}</span>
-        </td>
-        <td>
-          <span class="badge ${getStatusClass(txn.status)}">${txn.status}</span>
-        </td>
-        <td>
-          <select class="action-dropdown" onchange="updateTransactionStatus('${txn.firestoreId || txn.id}', this.value)">
-            <option value="Pending Payment" ${txn.status === "Pending Payment" ? "selected" : ""}>Pending Payment</option>
-            <option value="Ready for Dispatch" ${txn.status === "Ready for Dispatch" ? "selected" : ""}>Ready for Dispatch</option>
-            <option value="Dispatched" ${txn.status === "Dispatched" ? "selected" : ""}>Dispatched</option>
-            <option value="Delivered" ${txn.status === "Delivered" ? "selected" : ""}>Delivered</option>
-          </select>
-        </td>
-      </tr>
-    `;
-  });
-}
-
-// Trigger sound and FOMO notification banner on dashboard
-function triggerFomoNotification(txn) {
-  const banner = document.getElementById("payout-banner");
-  const bannerText = document.getElementById("payout-banner-text");
-  
-  if (banner && bannerText) {
-    bannerText.innerHTML = `💰 <strong>${txn.mpesaCode} Matched!</strong> ${txn.buyerName} paid KES ${txn.productAmountPaid.toLocaleString()} for ${txn.productName} (${txn.collectionPoint} hub).`;
-    banner.classList.add("active");
-
-    // Play a gentle ping sound using web audio API to alert the streamer
-    try {
-      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const oscillator = audioCtx.createOscillator();
-      const gainNode = audioCtx.createGain();
-      
-      oscillator.connect(gainNode);
-      gainNode.connect(audioCtx.destination);
-      
-      oscillator.type = "sine";
-      oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // A5 note
-      gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
-      
-      oscillator.start();
-      oscillator.stop(audioCtx.currentTime + 0.4);
-    } catch (e) {
-      console.log("Audio alert blocked by browser autoplay settings.");
-    }
-  }
-}
-
-// Manual SMS Parser
-function handleManualSMSParse() {
-  const smsInputField = document.getElementById("sms-input-field");
-  if (!smsInputField) return;
-
-  const smsText = smsInputField.value.trim();
-  if (!smsText) {
-    showToast("Please paste a valid M-PESA SMS notification first!", "error");
-    return;
-  }
-
-  const parsed = MpesaParser.parseSMS(smsText);
-  if (!parsed) {
-    showToast("Invalid M-PESA SMS layout! Check syntax.", "error");
-    return;
-  }
-
-  let matchedSeller = ACTIVE_SELLERS.find(s => smsText.includes(s.PochiPhone) || smsText.toUpperCase().includes(s.name.toUpperCase()) || smsText.toUpperCase().includes(s.shortName.toUpperCase()));
-  if (!matchedSeller) {
-    matchedSeller = ACTIVE_SELLERS.find(s => s.PochiPhone === activeSellerChannel);
-  }
-
-  const pendingMatch = transactions.find((t) => 
-    !t.matched && 
-    t.merchantPhone === matchedSeller.PochiPhone &&
-    (t.buyerName.toUpperCase().includes(parsed.mpesaSender.toUpperCase()) || 
-     parsed.mpesaSender.toUpperCase().includes(t.buyerName.toUpperCase()) ||
-     t.buyerContact.includes(parsed.mpesaPhone.substring(parsed.mpesaPhone.length - 9)))
-  );
-
-  if (pendingMatch) {
-    const courierFee = Math.max(0, parsed.amountPaid - pendingMatch.productPrice);
-    
-    const updateData = {
-      mpesaCode: parsed.mpesaCode,
-      mpesaSender: parsed.mpesaSender,
-      mpesaPhone: parsed.mpesaPhone,
-      productAmountPaid: pendingMatch.productPrice,
-      courierFeePaid: courierFee,
-      totalPaid: parsed.amountPaid,
-      paymentMethod: parsed.paymentMethod,
-      paymentRecipient: parsed.paymentRecipient,
-      splitSeller: pendingMatch.productPrice,
-      splitCourier: Number((courierFee * 0.5).toFixed(2)),
-      splitPlatform: Number((courierFee * 0.5).toFixed(2)),
-      sellerPochi: pendingMatch.merchantPhone,
-      courierPochi: pendingMatch.courierPochi || "0722000005",
-      platformPochi: pendingMatch.platformPochi || "0711000000",
-      matched: true,
-      status: "Ready for Dispatch"
-    };
-
-    if (db && pendingMatch.firestoreId) {
-      db.collection("transactions").doc(pendingMatch.firestoreId).update(updateData)
-        .then(() => {
-          showToast(`Merged: Matched with pending Buyer ${pendingMatch.buyerName}!`, "success");
-        })
-        .catch((err) => console.error("[Firebase] Merge failed:", err));
-    } else {
-      Object.assign(pendingMatch, updateData);
-      saveLocalFallback();
-      
-      if (pendingMatch.merchantPhone === activeSellerChannel) {
-        triggerFomoNotification(pendingMatch);
-      }
-      
-      renderApp();
-      showToast(`Merged: Matched with pending Buyer ${pendingMatch.buyerName}!`, "success");
-    }
-  } else {
-    const mockBuyerForm = {
-      buyerName: parsed.mpesaSender,
-      buyerContact: parsed.mpesaPhone,
-      collectionPoint: "Nairobi CBD Pick-up Centre",
-      productName: `Direct Sale: ${matchedSeller.initItem}`,
-      productPrice: Math.round(parsed.amountPaid * 0.85),
-      merchantId: matchedSeller.id,
-      merchantName: matchedSeller.name,
-      merchantPhone: matchedSeller.PochiPhone,
-      courierPochi: "0722000005",
-      platformPochi: "0711000000"
-    };
-
-    const newTxn = MpesaParser.mergeTransaction(parsed, mockBuyerForm);
-    newTxn.merchantId = matchedSeller.id;
-    newTxn.merchantName = matchedSeller.name;
-    newTxn.merchantPhone = matchedSeller.PochiPhone;
-    
-    if (db) {
-      db.collection("transactions").add(newTxn)
-        .then(() => showToast(`Direct SMS Processed for ${matchedSeller.name}!`, "success"))
-        .catch((err) => console.error("[Firebase] Direct add failed:", err));
-    } else {
-      transactions.unshift(newTxn);
-      saveLocalFallback();
-      
-      if (newTxn.merchantPhone === activeSellerChannel) {
-        triggerFomoNotification(newTxn);
-      }
-      
-      renderApp();
-      showToast(`Direct SMS Processed for ${matchedSeller.name}!`, "success");
-    }
-  }
-
-  smsInputField.value = "";
-}
-
-// Simulate an incoming buyer order live
-function simulateLiveBuyerPurchase() {
-  const seller = ACTIVE_SELLERS.find(s => s.PochiPhone === activeSellerChannel);
-  
-  const sampleNames = ["Joseph Ndwiga", "Mercy Chepngetich", "Silas Kamau", "Teresia Wambui", "Hassan Omar"];
-  const sampleContacts = ["0712883921", "0722883910", "0701889922", "0745812920", "0733891024"];
-  const sampleHubs = COLLECTION_POINTS;
-
-  const randName = sampleNames[Math.floor(Math.random() * sampleNames.length)];
-  const randContact = sampleContacts[Math.floor(Math.random() * sampleContacts.length)];
-  const randHub = sampleHubs[Math.floor(Math.random() * sampleHubs.length)];
-
-  const mockOrder = {
-    buyerName: randName,
-    buyerContact: randContact,
-    merchantId: seller.id,
-    merchantName: seller.name,
-    merchantPhone: seller.PochiPhone,
-    productName: seller.initItem,
-    productId: "custom",
-    productPrice: seller.initPrice,
-    deliveryFee: randHub.fee,
-    totalPaid: seller.initPrice + randHub.fee,
-    collectionPoint: randHub.name,
-    courierPochi: randHub.PochiPhone,
-    platformPochi: "0711000000",
-    timestamp: new Date().toISOString(),
-    mpesaCode: null,
-    matched: false,
-    status: "Pending Payment"
-  };
-
-  if (db) {
-    db.collection("transactions").add(mockOrder)
-      .then(() => showToast(`Simulated Live Order placed by ${randName} for ${seller.initItem}!`, "success"))
-      .catch((err) => console.error("[Firebase] Mock order failed:", err));
-  } else {
-    transactions.unshift(mockOrder);
-    saveLocalFallback();
-    renderApp();
-    showToast(`Simulated Live Order placed by ${randName} for ${seller.initItem}!`, "success");
-  }
-}
-
-// ==========================================================================
-// COURIER PORTAL
-// ==========================================================================
-function renderCourierDashboard() {
-  if (!checkCourierAuth()) return;
-  const tableBody = document.getElementById("courier-txn-table-body");
-  if (!tableBody) return;
-
-  tableBody.innerHTML = "";
-
-  const authCourierStr = localStorage.getItem("duka_auth_courier");
-  if (!authCourierStr) return;
-
-  const courier = JSON.parse(authCourierStr);
-  const courierTxns = transactions.filter((t) => t.matched && t.collectionPoint === courier.name);
-
-  if (courierTxns.length === 0) {
-    tableBody.innerHTML = `<tr><td colspan="10" style="text-align:center; color:var(--text-dark-secondary);">No packages waiting for dispatch. Matched transactions appear here.</td></tr>`;
-    return;
-  }
-
-  courierTxns.forEach((txn) => {
-    let dispatchTimeStr = "—";
-    let statusText = txn.status;
-    let statusClass = getStatusClass(txn.status);
-
-    if (txn.dispatchedAt) {
-      try {
-        const date = new Date(txn.dispatchedAt);
-        dispatchTimeStr = date.toLocaleString("en-KE", { 
-          year: "numeric", 
-          month: "short", 
-          day: "numeric", 
-          hour: "numeric", 
-          minute: "2-digit", 
-          hour12: true 
+        // Bind events
+        paginationContainer.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const targetBtn = e.currentTarget;
+                if (targetBtn.disabled) return;
+                const page = parseInt(targetBtn.getAttribute('data-page'), 10);
+                this.renderCategories(page);
+                
+                // Scroll to categories section
+                const categoriesSec = document.querySelector('.categories-section');
+                if (categoriesSec) categoriesSec.scrollIntoView({ behavior: 'smooth' });
+            });
         });
+    }
 
-        // Determine automatic status based on real elapsed time since dispatch
-        const diffMs = new Date() - date;
-        const diffHours = diffMs / (1000 * 60 * 60);
+    renderProducts(products, page = 1) {
+        const container = document.getElementById('products-container');
+        if (!container) return;
 
-        if (diffHours < 24) {
-          statusText = "In-Transit";
-          statusClass = "in-transit";
-        } else if (diffHours < 48) {
-          statusText = "Delivered";
-          statusClass = "delivered";
-        } else if (diffHours < 72) {
-          statusText = "At-Risk";
-          statusClass = "at-risk";
+        this.currentProductPage = page;
+        const limit = 10;
+        const totalItems = products.length;
+        const totalPages = Math.ceil(totalItems / limit);
+
+        if (page < 1) page = 1;
+        if (page > totalPages && totalPages > 0) page = totalPages;
+        this.currentProductPage = page;
+
+        const startIndex = (page - 1) * limit;
+        const endIndex = startIndex + limit;
+        const displayItems = products.slice(startIndex, endIndex);
+
+        if (displayItems.length === 0) {
+            container.innerHTML = '<p class="text-center py-8 w-full" style="grid-column: 1/-1;">No products found.</p>';
+            this.renderProductsPagination(products, totalPages, page);
+            return;
+        }
+
+        container.innerHTML = displayItems.map(p => this.createProductCard(p)).join('');
+        this.renderProductsPagination(products, totalPages, page);
+    }
+
+    renderProductsPagination(products, totalPages, currentPage) {
+        const paginationContainer = document.getElementById('products-pagination');
+        if (!paginationContainer) return;
+
+        if (totalPages <= 1) {
+            paginationContainer.innerHTML = '';
+            return;
+        }
+
+        let html = '';
+        
+        // Prev button
+        html += `<button class="page-btn" ${currentPage === 1 ? 'disabled' : ''} data-page="${currentPage - 1}"><i class="fas fa-chevron-left"></i></button>`;
+
+        // Page buttons
+        for (let i = 1; i <= totalPages; i++) {
+            html += `<button class="page-btn ${currentPage === i ? 'active' : ''}" data-page="${i}">${i}</button>`;
+        }
+
+        // Next button
+        html += `<button class="page-btn" ${currentPage === totalPages ? 'disabled' : ''} data-page="${currentPage + 1}"><i class="fas fa-chevron-right"></i></button>`;
+
+        paginationContainer.innerHTML = html;
+
+        // Bind events
+        paginationContainer.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const targetBtn = e.currentTarget;
+                if (targetBtn.disabled) return;
+                const page = parseInt(targetBtn.getAttribute('data-page'), 10);
+                this.renderProducts(products, page);
+                
+                // Scroll to shop section
+                const shop = document.getElementById('shop');
+                if (shop) shop.scrollIntoView({ behavior: 'smooth' });
+            });
+        });
+    }
+
+    createProductCard(product) {
+        const price = parseFloat(product.price).toLocaleString();
+        const oldPrice = product.old_price ? parseFloat(product.old_price).toLocaleString() : null;
+
+        // Handle image: default mock if missing or invalid
+        let imageSrc = product.images ? product.images.split(',')[0] : 'assets/placeholder.png';
+        if (!imageSrc || imageSrc.length < 5) imageSrc = 'https://via.placeholder.com/300x300?text=No+Image';
+
+        return `
+            <div class="product-card">
+                <a href="javascript:void(0)" onclick="window.App.openProductModal('${encodeURIComponent(product.name)}')" style="text-decoration:none; color:inherit; display:block;">
+                    <img src="${imageSrc}" alt="${product.name}" class="product-image">
+                    <div class="product-info">
+                        <h3>${product.name}</h3>
+                        <div class="product-price">
+                            ${oldPrice ? `<span class="old-price">KES ${oldPrice}</span>` : ''}
+                            KES ${price}
+                        </div>
+                    </div>
+                </a>
+                <button class="btn btn-outline" style="width:100%; margin-top:auto" onclick="window.App.addToCart('${product.name}')">
+                    Add to Cart
+                </button>
+            </div>
+        `;
+    }
+
+    updateHero(products) {
+        // Find a "featured" product or just take the first one
+        if (products.length > 0) {
+            const featured = products[0];
+            // Ideally update the hero text dynamically
+            // For now, we keep the static design for stability
+        }
+    }
+
+    addToCart(productName) {
+        this.cart.push(productName);
+        localStorage.setItem('copier_maximum_cart', JSON.stringify(this.cart));
+        this.updateCartBadge();
+        alert(`${productName} added to cart!`);
+    }
+
+    addToCartWithQty() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const name = urlParams.get('product');
+        if (name) {
+            this.addToCart(name);
         } else {
-          statusText = "Lost";
-          statusClass = "lost";
+            alert("Product name not found in the URL.");
         }
-      } catch (e) {
-        console.error("Error formatting dispatch date:", e);
-      }
     }
 
-    tableBody.innerHTML += `
-      <tr>
-        <td><strong style="color:#FFF;">${txn.mpesaCode}</strong></td>
-        <td>
-          <div style="font-weight: 600;">${txn.buyerName}</div>
-          <div style="font-size: 0.75rem; color: var(--text-dark-secondary);">${txn.buyerContact}</div>
-        </td>
-        <td>
-          <div style="font-weight: 700; color: var(--secondary-orange);">${txn.productName}</div>
-          <div style="font-size: 0.75rem; color: var(--text-dark-secondary);">Seller: ${txn.merchantName || 'Grogan Spares Zone'}</div>
-        </td>
-        <td><span style="font-weight: 600;">${txn.collectionPoint}</span></td>
-        <td><span style="font-family: 'Outfit'; font-weight:700;">KES ${txn.courierFeePaid.toLocaleString()}</span></td>
-        <td>
-          <div style="font-size: 0.8rem; font-weight:600; color: var(--primary-green);">🚚 Courier Share: KES ${txn.splitCourier.toLocaleString()} &rarr; ${txn.courierPochi || '0722000005'}</div>
-          <div style="font-size: 0.75rem; color: var(--text-dark-secondary);">💻 Platform Split: KES ${txn.splitPlatform.toLocaleString()}</div>
-        </td>
-        <td>
-          <span style="font-size:0.85rem; font-weight:500; color:var(--text-dark-secondary);">${dispatchTimeStr}</span>
-        </td>
-        <td>
-          <span class="time-since-dispatch-counter" style="font-family:'Outfit'; font-weight:700; font-size:0.9rem;" data-dispatched="${txn.dispatchedAt || ''}" data-txnid="${txn.firestoreId || txn.id}">—</span>
-        </td>
-        <td>
-          <span id="status-badge-${txn.firestoreId || txn.id}" class="badge ${statusClass}">${statusText}</span>
-        </td>
-        <td>
-          <div style="display:flex; gap:8px;">
-            ${txn.status === "Ready for Dispatch" ? 
-              `<button class="parser-action-btn" style="padding: 6px 12px; font-size: 0.75rem; background: var(--secondary-orange);" onclick="updateTransactionStatus('${txn.firestoreId || txn.id}', 'Dispatched')">Dispatch Item</button>` : 
-              ""
+    updateCartBadge() {
+        const badges = document.querySelectorAll('.badge');
+        badges.forEach(badge => {
+            badge.textContent = this.cart.length;
+            if (this.cart.length > 0) {
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
             }
-            ${txn.status === "Dispatched" || statusText === "In-Transit" ? 
-              `<button class="parser-action-btn" style="padding: 6px 12px; font-size: 0.75rem; background: var(--primary-green);" onclick="updateTransactionStatus('${txn.firestoreId || txn.id}', 'Delivered')">Confirm Delivery</button>` : 
-              ""
+        });
+    }
+
+    getMockData() {
+        return [
+            { name: "Kyocera TASKalfa 4052ci", category: "Refurbished Copiers", price: "125000", old_price: "150000", images: "https://via.placeholder.com/300?text=Copier,https://via.placeholder.com/300?text=Side-View,https://via.placeholder.com/300?text=Top-View", description: "Color MFP, High Speed. Excellent for busy offices requiring large volume prints. Includes ADF and duplex standard." },
+            { name: "HP EliteBook 840 G5", category: "Laptops & Computers", price: "45000", old_price: "55000", images: "https://via.placeholder.com/300?text=Laptop", description: "i5 8th Gen, 8GB RAM, 256GB SSD." },
+            { name: "Kyocera TK-8505 Toner", category: "Toners", price: "12000", old_price: null, images: "https://via.placeholder.com/300?text=Toner", description: "Original Black Toner." },
+            { name: "Ricoh MP C3004", category: "Refurbished Copiers", price: "95000", old_price: "110000", images: "https://via.placeholder.com/300?text=Ricoh", description: "Excellent Condition." }
+        ];
+    }
+
+    /* Modal Logic */
+    openProductModal(encodedName) {
+        const name = decodeURIComponent(encodedName);
+        const product = this.products.find(p => p.name === name);
+        if (!product) return;
+
+        const modal = document.getElementById('product-modal');
+        if (!modal) return;
+
+        // Populate basic info
+        document.getElementById('modal-title').textContent = product.name;
+
+        const price = parseFloat(product.price).toLocaleString();
+        const oldPrice = product.old_price ? parseFloat(product.old_price).toLocaleString() : null;
+        document.getElementById('modal-price').innerHTML = `
+            ${oldPrice ? `<span class="old-price">KES ${oldPrice}</span>` : ''}
+            KES ${price}
+        `;
+
+        document.getElementById('modal-description').innerHTML = product.description || "No specific details available.";
+
+        // Handle Images
+        let imagesArr = product.images ? product.images.split(',') : ['assets/placeholder.png'];
+        if (imagesArr.length === 0 || imagesArr[0].length < 5) imagesArr = ['https://via.placeholder.com/300x300?text=No+Image'];
+
+        const mainImg = document.getElementById('modal-main-img');
+        const thumbsContainer = document.getElementById('modal-thumbnails');
+
+        mainImg.src = imagesArr[0];
+
+        thumbsContainer.innerHTML = '';
+        if (imagesArr.length > 1) {
+            imagesArr.forEach(imgUrl => {
+                const thumbBtn = document.createElement('img');
+                thumbBtn.src = imgUrl;
+                thumbBtn.className = 'thumb-img';
+                thumbBtn.onclick = () => window.App.changeMainImage(imgUrl);
+                thumbsContainer.appendChild(thumbBtn);
+            });
+        }
+
+        // Action Button
+        const addBtn = document.getElementById('modal-add-cart-btn');
+        addBtn.onclick = () => {
+            this.addToCart(product.name);
+            this.closeProductModal();
+        };
+
+        // Product Link Button
+        const linkBtn = document.getElementById('modal-product-link');
+        if (linkBtn) {
+            if (product.product_link && product.product_link.trim() !== '') {
+                linkBtn.href = product.product_link;
+                linkBtn.classList.remove('hidden');
+            } else {
+                linkBtn.classList.add('hidden');
             }
-            ${statusText === "Delivered" ? 
-              `<span style="color:var(--text-dark-secondary); font-size:0.8rem;">📦 Item Delivered</span>` : 
-              ""
-            }
-          </div>
-        </td>
-      </tr>
-    `;
-  });
-
-  // Run immediate update for timers after rendering
-  updateCourierTimeCounters();
-}
-
-function getStatusClass(status) {
-  switch (status) {
-    case "Pending Payment": return "pending";
-    case "Ready for Dispatch": return "ready";
-    case "Dispatched": return "dispatched";
-    case "In-Transit": return "in-transit";
-    case "Delivered": return "delivered";
-    case "At-Risk": return "at-risk";
-    case "Lost": return "lost";
-    default: return "pending";
-  }
-}
-
-// ==========================================================================
-// REAL-TIME COURIER TIMELINE TICKER (1s BACKGROUND LOOP)
-// ==========================================================================
-let courierTimerInterval = null;
-
-function startCourierTimerLoop() {
-  if (courierTimerInterval) clearInterval(courierTimerInterval);
-  updateCourierTimeCounters();
-  courierTimerInterval = setInterval(updateCourierTimeCounters, 1000);
-}
-
-function updateCourierTimeCounters() {
-  const elements = document.querySelectorAll(".time-since-dispatch-counter");
-  elements.forEach((el) => {
-    const dispatchedAtStr = el.dataset.dispatched;
-    if (!dispatchedAtStr) {
-      el.textContent = "—";
-      return;
-    }
-
-    const dispatchedAt = new Date(dispatchedAtStr);
-    const diffMs = new Date() - dispatchedAt;
-    
-    if (diffMs < 0) {
-      el.textContent = "0s";
-      return;
-    }
-
-    const diffSecs = Math.floor(diffMs / 1000);
-    const diffMins = Math.floor(diffSecs / 60);
-    const diffHours = Math.floor(diffMins / 60);
-
-    const displaySecs = diffSecs % 60;
-    const displayMins = diffMins % 60;
-    const displayHours = diffHours; // Cumulative hours
-
-    let timeStr = `${displayHours}h ${displayMins}m ${displaySecs}s`;
-    el.textContent = timeStr;
-
-    // Dynamically calculate and transition statuses in real-time
-    const txnid = el.dataset.txnid;
-    const statusEl = document.getElementById(`status-badge-${txnid}`);
-    if (statusEl) {
-      let statusText = "In-Transit";
-      let statusClass = "in-transit";
-
-      if (diffHours < 24) {
-        statusText = "In-Transit";
-        statusClass = "in-transit";
-      } else if (diffHours < 48) {
-        statusText = "Delivered";
-        statusClass = "delivered";
-      } else if (diffHours < 72) {
-        statusText = "At-Risk";
-        statusClass = "at-risk";
-      } else {
-        statusText = "Lost";
-        statusClass = "lost";
-      }
-
-      statusEl.textContent = statusText;
-      statusEl.className = `badge ${statusClass}`;
-    }
-  });
-}
-
-function updateTransactionStatus(id, newStatus) {
-  const isFirestoreDocId = (db && transactions.some(t => t.firestoreId === id));
-  const updateData = { status: newStatus };
-
-  if (newStatus === "Dispatched") {
-    updateData.dispatchedAt = new Date().toISOString();
-  }
-
-  if (isFirestoreDocId) {
-    db.collection("transactions").doc(id).update(updateData)
-      .then(() => showToast(`Status updated: ${newStatus}`, "success"))
-      .catch((err) => console.error("[Firebase] Status update failed:", err));
-  } else {
-    const txn = transactions.find((t) => t.id === id || t.firestoreId === id);
-    if (txn) {
-      txn.status = newStatus;
-      if (newStatus === "Dispatched") {
-        txn.dispatchedAt = updateData.dispatchedAt;
-      }
-      saveLocalFallback();
-      showToast(`Status updated: ${newStatus}`, "success");
-      renderApp();
-    }
-  }
-
-  trackEvent("status_updated", {
-    transactionId: id,
-    newStatus: newStatus
-  });
-}
-
-// ==========================================================================
-// REPORT PRINTER & EXPORTER
-// ==========================================================================
-function triggerReportPrint(timeframe) {
-  let filtered = [...transactions];
-  const now = new Date();
-
-  if (timeframe === "hourly") {
-    const oneHourAgo = new Date(now.getTime() - (60 * 60 * 1000));
-    filtered = transactions.filter((t) => new Date(t.timestamp) >= oneHourAgo);
-  } else if (timeframe === "daily") {
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    filtered = transactions.filter((t) => new Date(t.timestamp) >= startOfToday);
-  } else if (timeframe === "weekly") {
-    const sevenDaysAgo = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
-    filtered = transactions.filter((t) => new Date(t.timestamp) >= sevenDaysAgo);
-  } else if (timeframe === "monthly") {
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    filtered = transactions.filter((t) => new Date(t.timestamp) >= startOfMonth);
-  }
-
-  trackEvent("report_printed", { timeframe: timeframe, count: filtered.length });
-
-  const oldPrintHeader = document.querySelector(".print-header");
-  if (oldPrintHeader) oldPrintHeader.remove();
-
-  const printHeaderDiv = document.createElement("div");
-  printHeaderDiv.className = "print-header";
-  printHeaderDiv.innerHTML = `
-    <h1>DUKA ONLINE LOGISTICS & PAYOUT REPORT</h1>
-    <p>Report Period: <strong>${timeframe.toUpperCase()}</strong> | Date Generated: ${now.toLocaleString("en-KE")}</p>
-    <p>Total Matched Records: ${filtered.filter(t => t.matched).length} | Pending Matching: ${filtered.filter(t => !t.matched).length}</p>
-  `;
-
-  document.body.prepend(printHeaderDiv);
-  window.print();
-}
-
-// ==========================================================================
-// PWA INSTALLATION INTERFACES & TOASTS
-// ==========================================================================
-function installPWA() {
-  if (!deferredInstallPrompt) return;
-  
-  deferredInstallPrompt.prompt();
-  deferredInstallPrompt.userChoice.then((choiceResult) => {
-    if (choiceResult.outcome === "accepted") {
-      console.log("[PWA] User accepted installation prompt");
-      trackEvent("pwa_installed");
-    }
-    deferredInstallPrompt = null;
-    document.getElementById("pwa-install-banner").style.display = "none";
-  });
-}
-
-function dismissInstallBanner() {
-  document.getElementById("pwa-install-banner").style.display = "none";
-}
-
-function showToast(message, type = "success") {
-  const container = document.getElementById("toast-container");
-  if (!container) return;
-
-  const toast = document.createElement("div");
-  toast.className = `toast ${type === "error" ? "error" : type === "courier" ? "courier" : ""}`;
-  
-  toast.innerHTML = `
-    <span>${message}</span>
-    <button class="toast-close" onclick="this.parentElement.remove()">&times;</button>
-  `;
-
-  container.appendChild(toast);
-
-  setTimeout(() => {
-    toast.style.opacity = "0";
-    toast.style.transform = "translateX(50px)";
-    setTimeout(() => toast.remove(), 300);
-  }, 4500);
-}
-
-// ==========================================================================
-// DYNAMIC DUKA ONLINE REGISTRIES (LocalStorage & Asynchronous Firestore Sync)
-// ==========================================================================
-function loadSellersAndHubs() {
-  // 1. Load from LocalStorage fallback first (instant offline render)
-  const storedSellers = localStorage.getItem("duka_sellers");
-  if (storedSellers) {
-    try {
-      const localSellers = JSON.parse(storedSellers);
-      localSellers.forEach(ls => {
-        if (!ACTIVE_SELLERS.some(s => s.PochiPhone === ls.PochiPhone || s.id === ls.id)) {
-          ACTIVE_SELLERS.push(ls);
-        }
-      });
-    } catch (e) {
-      console.error("Error loading stored sellers:", e);
-    }
-  }
-  const storedHubs = localStorage.getItem("duka_hubs");
-  if (storedHubs) {
-    try {
-      const localHubs = JSON.parse(storedHubs);
-      localHubs.forEach(lh => {
-        if (!COLLECTION_POINTS.some(h => h.PochiPhone === lh.PochiPhone || h.id === lh.id)) {
-          COLLECTION_POINTS.push(lh);
-        }
-      });
-    } catch (e) {
-      console.error("Error loading stored hubs:", e);
-    }
-  }
-
-  // 2. Fetch from Firestore if connected (syncs online updates in background!)
-  if (db) {
-    db.collection("sellers").get().then((snapshot) => {
-      let cloudSellers = [];
-      if (!snapshot.empty) {
-        snapshot.forEach(doc => cloudSellers.push(doc.data()));
-      }
-
-      // Merge cloud sellers with local (ensuring no duplicates by Pochi Phone)
-      cloudSellers.forEach(cs => {
-        if (!ACTIVE_SELLERS.some(s => s.PochiPhone === cs.PochiPhone)) {
-          ACTIVE_SELLERS.push(cs);
-        }
-      });
-      localStorage.setItem("duka_sellers", JSON.stringify(ACTIVE_SELLERS));
-      populateDropdowns(); // Re-populate UI dropdowns
-    }).catch(err => console.log("Sellers fetch failed or offline:", err));
-
-    db.collection("hubs").get().then((snapshot) => {
-      let cloudHubs = [];
-      if (!snapshot.empty) {
-        snapshot.forEach(doc => cloudHubs.push(doc.data()));
-      }
-
-      // Merge cloud hubs with local (ensuring no duplicates by ID)
-      cloudHubs.forEach(ch => {
-        if (!COLLECTION_POINTS.some(h => h.id === ch.id || h.PochiPhone === ch.PochiPhone)) {
-          COLLECTION_POINTS.push(ch);
-        }
-      });
-      localStorage.setItem("duka_hubs", JSON.stringify(COLLECTION_POINTS));
-      populateDropdowns(); // Re-populate UI dropdowns
-    }).catch(err => console.log("Hubs fetch failed or offline:", err));
-  }
-}
-
-// ==========================================================================
-// DYNAMIC SIGN-UP REGISTRATIONS (Mobile-First Bottom-Sheets)
-// ==========================================================================
-function openSellerSignupModal() {
-  const modal = document.getElementById("seller-signup-modal");
-  if (modal) modal.classList.add("active");
-}
-
-function closeSellerSignupModal() {
-  const modal = document.getElementById("seller-signup-modal");
-  if (modal) modal.classList.remove("active");
-  document.getElementById("seller-signup-form").reset();
-}
-
-// Register a New Seller
-function registerNewSeller(event) {
-  event.preventDefault();
-
-  const name = document.getElementById("reg-seller-name").value.trim();
-  const shortName = document.getElementById("reg-seller-short").value.trim();
-  const PochiPhone = document.getElementById("reg-seller-pochi").value.trim();
-  const avatar = document.getElementById("reg-seller-avatar").value;
-  const pin = document.getElementById("reg-seller-pin").value.trim();
-
-  if (!name || !shortName || !PochiPhone || !pin) {
-    showToast("Please fill in all registration fields!", "error");
-    return;
-  }
-
-  if (!/^\d{4}$/.test(pin)) {
-    showToast("Passcode must be a 4-digit numeric PIN!", "error");
-    return;
-  }
-
-  // Check if Seller already exists by phone
-  if (ACTIVE_SELLERS.some(s => s.PochiPhone === PochiPhone)) {
-    showToast("A seller with this Pochi phone is already registered!", "error");
-    return;
-  }
-
-  const newSeller = {
-    id: `seller-${Date.now()}`,
-    name: name,
-    PochiPhone: PochiPhone,
-    shortName: shortName,
-    avatar: avatar,
-    initItem: "Live Show Item", // Safe baseline default for direct matching simulations
-    initPrice: 1000,            // Safe baseline default
-    pin: pin
-  };
-
-  // Add locally instantly
-  ACTIVE_SELLERS.push(newSeller);
-  localStorage.setItem("duka_sellers", JSON.stringify(ACTIVE_SELLERS));
-
-  // Sync in background with Firestore
-  if (db) {
-    db.collection("sellers").add(newSeller)
-      .then(() => console.log("[Firebase] New merchant sync done:", name))
-      .catch((err) => console.error("[Firebase] New merchant sync failed (offline queue active):", err));
-  }
-
-  // Update UI and clean up
-  populateDropdowns();
-  closeSellerSignupModal();
-  showToast(`Shop "${name}" successfully registered!`, "success");
-  
-  // Auto login newly registered seller session
-  localStorage.setItem("duka_auth_seller", JSON.stringify(newSeller));
-  checkSellerAuth();
-  
-  // Auto-switch selector to the newly registered seller on the seller dashboard
-  const channelSelector = document.getElementById("seller-channel-selector");
-  if (channelSelector) {
-    channelSelector.value = PochiPhone;
-    handleSellerChannelChange();
-  }
-}
-
-function openCourierSignupModal() {
-  const modal = document.getElementById("courier-signup-modal");
-  if (modal) modal.classList.add("active");
-}
-
-function closeCourierSignupModal() {
-  const modal = document.getElementById("courier-signup-modal");
-  if (modal) modal.classList.remove("active");
-  document.getElementById("courier-signup-form").reset();
-}
-
-// Register a New Courier Depot
-function registerNewCourier(event) {
-  event.preventDefault();
-
-  const name = document.getElementById("reg-courier-name").value.trim();
-  const PochiPhone = document.getElementById("reg-courier-pochi").value.trim();
-  const pin = document.getElementById("reg-courier-pin").value.trim();
-
-  if (!name || !PochiPhone || !pin) {
-    showToast("Please fill in all hub details!", "error");
-    return;
-  }
-
-  if (!/^\d{4}$/.test(pin)) {
-    showToast("Passcode must be a 4-digit numeric PIN!", "error");
-    return;
-  }
-
-  // Check if Hub already exists
-  if (COLLECTION_POINTS.some(h => h.PochiPhone === PochiPhone)) {
-    showToast("A courier depot with this phone number already exists!", "error");
-    return;
-  }
-
-  const newHub = {
-    id: `hub-${Date.now()}`,
-    name: name,
-    fee: 200, // Standard default shipping fee (which varies dynamically by distance/weight in practice)
-    PochiPhone: PochiPhone,
-    pin: pin
-  };
-
-  // Add locally instantly
-  COLLECTION_POINTS.push(newHub);
-  localStorage.setItem("duka_hubs", JSON.stringify(COLLECTION_POINTS));
-
-  // Sync in background with Firestore
-  if (db) {
-    db.collection("hubs").add(newHub)
-      .then(() => console.log("[Firebase] New depot sync done:", name))
-      .catch((err) => console.error("[Firebase] New depot sync failed (offline queue active):", err));
-  }
-
-  // Update UI and clean up
-  populateDropdowns();
-  closeCourierSignupModal();
-  showToast(`Courier Depot "${name}" registered successfully!`, "courier");
-
-  // Auto login newly registered courier depot session
-  localStorage.setItem("duka_auth_courier", JSON.stringify(newHub));
-  checkCourierAuth();
-}
-
-// ==========================================================================
-// SELLER & COURIER PORTAL AUTHENTICATION GATES
-// ==========================================================================
-
-// Verify Seller Authentication
-function checkSellerAuth() {
-  const authSellerStr = localStorage.getItem("duka_auth_seller");
-  const authGate = document.getElementById("seller-auth-gate");
-  const dashContent = document.getElementById("seller-dashboard-content");
-
-  if (authSellerStr) {
-    try {
-      const seller = JSON.parse(authSellerStr);
-      // Verify credentials against ACTIVE_SELLERS
-      const verified = ACTIVE_SELLERS.find(s => s.PochiPhone === seller.PochiPhone && s.pin === seller.pin);
-      if (verified) {
-        if (authGate) authGate.style.display = "none";
-        if (dashContent) dashContent.style.display = "block";
-        activeSellerChannel = seller.PochiPhone;
-
-        const sellerChannelSelector = document.getElementById("seller-channel-selector");
-        if (sellerChannelSelector) {
-          sellerChannelSelector.value = activeSellerChannel;
-          sellerChannelSelector.disabled = true;
         }
 
-        // Set dynamic live share URL based on shortName
-        const shareInput = document.getElementById("seller-share-url-input");
-        if (shareInput) {
-          shareInput.value = `${window.location.origin}/?seller=${verified.shortName.toLowerCase()}`;
+        // Show Modal
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden'; // prevent background scroll
+    }
+
+    closeProductModal() {
+        const modal = document.getElementById('product-modal');
+        if (modal) {
+            modal.classList.add('hidden');
+            document.body.style.overflow = '';
         }
-
-        return true;
-      }
-    } catch (e) {
-      console.error("Error parsing seller auth:", e);
     }
-  }
 
-  if (authGate) authGate.style.display = "flex";
-  if (dashContent) dashContent.style.display = "none";
-  return false;
-}
-
-// Copy Merchant Live Checkout Link to Clipboard
-function copySellerShareLink() {
-  const shareInput = document.getElementById("seller-share-url-input");
-  if (shareInput) {
-    shareInput.select();
-    shareInput.setSelectionRange(0, 99999); // Touch optimization
-
-    try {
-      navigator.clipboard.writeText(shareInput.value).then(() => {
-        showToast("Live broadcast link copied to clipboard!", "success");
-      });
-    } catch (err) {
-      document.execCommand("copy"); // Fallback for low-end browsers
-      showToast("Live broadcast link copied to clipboard!", "success");
+    changeMainImage(imgUrl) {
+        document.getElementById('modal-main-img').src = imgUrl;
     }
-  }
 }
 
-// Handle Seller Log In Form Submission
-function handleSellerLogin(event) {
-  event.preventDefault();
-  const phone = document.getElementById("login-seller-phone").value.trim();
-  const pin = document.getElementById("login-seller-pin").value.trim();
-
-  const seller = ACTIVE_SELLERS.find(s => s.PochiPhone === phone && s.pin === pin);
-  if (seller) {
-    localStorage.setItem("duka_auth_seller", JSON.stringify(seller));
-    showToast(`Welcome back, ${seller.name}!`, "success");
-
-    // Clear login inputs
-    document.getElementById("login-seller-phone").value = "";
-    document.getElementById("login-seller-pin").value = "";
-
-    checkSellerAuth();
-  } else {
-    showToast("Invalid Pochi phone number or PIN!", "error");
-  }
-}
-
-// Handle Seller Log Out
-function handleSellerLogout() {
-  localStorage.removeItem("duka_auth_seller");
-  showToast("Logged out of Merchant Control Panel", "success");
-  checkSellerAuth();
-}
-
-// Verify Courier Authentication
-function checkCourierAuth() {
-  const authCourierStr = localStorage.getItem("duka_auth_courier");
-  const authGate = document.getElementById("courier-auth-gate");
-  const dashContent = document.getElementById("courier-dashboard-content");
-
-  if (authCourierStr) {
-    try {
-      const courier = JSON.parse(authCourierStr);
-      // Verify credentials against COLLECTION_POINTS
-      const verified = COLLECTION_POINTS.find(h => h.PochiPhone === courier.PochiPhone && h.pin === courier.pin);
-      if (verified) {
-        if (authGate) authGate.style.display = "none";
-        if (dashContent) dashContent.style.display = "block";
-        return true;
-      }
-    } catch (e) {
-      console.error("Error parsing courier auth:", e);
-    }
-  }
-
-  if (authGate) authGate.style.display = "flex";
-  if (dashContent) dashContent.style.display = "none";
-  return false;
-}
-
-// Handle Courier Log In Form Submission
-function handleCourierLogin(event) {
-  event.preventDefault();
-  const phone = document.getElementById("login-courier-phone").value.trim();
-  const pin = document.getElementById("login-courier-pin").value.trim();
-
-  const hub = COLLECTION_POINTS.find(h => h.PochiPhone === phone && h.pin === pin);
-  if (hub) {
-    localStorage.setItem("duka_auth_courier", JSON.stringify(hub));
-    showToast(`Courier Depot "${hub.name}" unlocked!`, "courier");
-
-    // Clear login inputs
-    document.getElementById("login-courier-phone").value = "";
-    document.getElementById("login-courier-pin").value = "";
-
-    checkCourierAuth();
-  } else {
-    showToast("Invalid Depot Pochi phone number or PIN!", "error");
-  }
-}
-
-// Handle Courier Log Out
-function handleCourierLogout() {
-  localStorage.removeItem("duka_auth_courier");
-  showToast("Logged out of Courier Portal", "courier");
-  checkCourierAuth();
-}
-
-// ==========================================================================
-// EVENT LISTENERS SETUP
-// ==========================================================================
-function setupEventListeners() {
-  document.querySelectorAll(".nav-btn").forEach((btn) => {
-    btn.addEventListener("click", () => switchRole(btn.dataset.role));
-  });
-
-  const selectPoint = document.getElementById("checkout-collection-point");
-  if (selectPoint) {
-    selectPoint.addEventListener("change", updateCheckoutPricing);
-  }
-
-  // Handle dynamic screen rotations & resizes to instantly hide or show distraction cards
-  window.addEventListener("resize", renderBuyerPortal);
-}
+// Global Access
+window.App = new App();
