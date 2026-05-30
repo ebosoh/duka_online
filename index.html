@@ -1,491 +1,703 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Copier Maximum Solutions | Premium Office Automation & Supplies</title>
-    <meta name="description"
-        content="Best deals on Refurbished Copiers, Kyocera Printers, Toners, Laptops, and Spare Parts in Kenya. Copier Maximum Solutions - Your Partner in Office Efficiency.">
-
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-
-    <!-- Styles -->
-    <link rel="stylesheet" href="styles.css">
-    <!-- FontAwesome for Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#00B050">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="description" content="Duka Online - Premium Progressive Web App bridging the gap between live-shopping, M-PESA confirmation parsing, and split payouts for Kenyan merchants and couriers.">
+  
+  <title>Duka Online - Kenya's Live Shopping PWA</title>
+  
+  <!-- Manifest & Favicon linkage (Root Collapsed) -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  
+  <!-- CSS Design System Stylesheet (Root Collapsed) -->
+  <link rel="stylesheet" href="styles.css">
+  
+  <style>
+    /* Live Video Mockup Frame in Buyer View */
+    .live-stream-placeholder {
+      position: relative;
+      background: #000;
+      border-radius: var(--border-radius-lg);
+      overflow: hidden;
+      aspect-ratio: 16/9;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      border: 1px solid var(--border-light);
+      box-shadow: var(--shadow-light);
+      color: #FFF;
+    }
+    
+    .live-stream-overlay-top {
+      padding: 15px;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.8), rgba(0,0,0,0));
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 5;
+    }
+    
+    .live-stream-overlay-bottom {
+      padding: 20px;
+      background: linear-gradient(to top, rgba(0,0,0,0.9), rgba(0,0,0,0));
+      z-index: 5;
+    }
+    
+    .streamer-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .streamer-avatar {
+      width: 32px;
+      height: 32px;
+      background: var(--primary-green);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.85rem;
+    }
+    
+    .live-audience-counter {
+      background: rgba(0,0,0,0.6);
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    
+    .comment-feed {
+      max-height: 80px;
+      overflow-y: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 0.8rem;
+      margin-top: 10px;
+    }
+    
+    .comment-item {
+      background: rgba(255,255,255,0.15);
+      backdrop-filter: blur(5px);
+      padding: 4px 10px;
+      border-radius: 20px;
+      width: fit-content;
+    }
+    
+    .stream-play-btn {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 60px;
+      height: 60px;
+      background: rgba(255, 159, 28, 0.9);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 1.8rem;
+      color: white;
+      box-shadow: 0 0 20px rgba(255, 159, 28, 0.5);
+      border: none;
+      transition: var(--transition-fast);
+      z-index: 10;
+    }
+    
+    .stream-play-btn:hover {
+      background: var(--secondary-orange-hover);
+      transform: translate(-50%, -50%) scale(1.08);
+    }
+    
+    /* Live sound flashing banner */
+    .fomo-payout-banner {
+      background: linear-gradient(90deg, rgba(0, 176, 80, 0.2), rgba(255, 159, 28, 0.2));
+      border: 1px solid var(--primary-green);
+      border-radius: var(--border-radius-md);
+      padding: 12px 20px;
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.5rem;
+      animation: slideUp 0.35s ease;
+    }
+    
+    .fomo-payout-banner.active {
+      display: flex;
+    }
+    
+    .fomo-payout-text {
+      font-weight: 700;
+      color: #FFF;
+      font-size: 0.95rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+  </style>
 </head>
-
 <body>
 
-    <!-- Top Bar (Contact & quick links) -->
-    <div class="top-bar">
-        <!-- To be populated via JS or static -->
+  <!-- PWA Install Banner -->
+  <div id="pwa-install-banner" class="pwa-install-banner">
+    <div>⚡ Install <strong>Duka Online</strong> on your homescreen for instant alerts & offline tracking!</div>
+    <div style="display: flex; gap: 8px;">
+      <button onclick="installPWA()">Install</button>
+      <button style="background: transparent; color: white;" onclick="dismissInstallBanner()">Dismiss</button>
+    </div>
+  </div>
+
+  <div id="app-container">
+    
+    <!-- Top Responsive Banner Ad Space (Space 1) -->
+    <div class="ad-banner-spot" id="top-responsive-ad">
+      <div style="display:flex; align-items:center; gap: 12px; flex-wrap: wrap; flex: 1; min-width: 0; margin-right: 15px;">
+        <span class="ad-badge-tag">Promo</span>
+        <div style="flex: 1; min-width: 220px;">
+          <span class="ad-title">Safaricom Live Stream bundles!</span>
+          <span class="ad-desc">— Stream TikTok & FB Live shows with zero no-expiry data limits.</span>
+        </div>
+      </div>
+      <button class="ad-button" onclick="window.open('https://www.safaricom.co.ke', '_blank')">Activate Now</button>
     </div>
 
-    <!-- Main Navigation -->
-    <header class="main-header">
-        <div class="container flex justify-between items-center">
-            <a href="index.html" class="logo">
-                <img src="logo.png" alt="Copier Maximum Solutions" class="logo-image">
-            </a>
-
-            <!-- Contact Info Block -->
-            <div class="header-contact-info hidden-mobile flex items-center gap-4 ml-8">
-                <div class="icon-wrapper text-yellow-500 text-4xl">
-                    <i class="fas fa-headset" style="color: #FFD700;"></i>
-                </div>
-                <div class="contact-details text-sm">
-                    <p class="text-gray-500 mb-1">Got Questions ? Call us 24/7!</p>
-                    <div class="phones font-bold text-gray-800 text-lg leading-tight">
-                        <span>+254717520268</span> <span class="text-gray-400 mx-1">|</span>
-                        <span>+254101520268</span> <span class="text-gray-400 mx-1">|</span>
-                        <span>+254725770263</span> <span class="text-gray-400 mx-1">|</span>
-                        <span>+254702454615</span>
-                    </div>
-                    <div class="emails text-sm text-gray-600 mt-1 font-medium">
-                        Email: info@copiermaxsolutions.co.ke <span class="mx-1">|</span> copiermaxsolution@gmail.com
-                    </div>
-                </div>
-            </div>
-
-            <nav class="desktop-nav hidden-mobile">
-                <a href="#home">Home</a>
-                <a href="#shop">Shop</a>
-                <a href="#services">Services</a>
-                <a href="#contact">Contact</a>
-                <a href="admin.html" class="hidden-desktop admin-mobile-login" style="color: #3B82F6; font-weight: bold; border-top: 1px dashed rgba(0, 0, 0, 0.1); padding-top: 0.75rem; margin-top: 0.5rem;"><i class="fas fa-sign-in-alt" style="margin-right: 0.5rem;"></i> Admin Login</a>
-            </nav>
-
-            <a href="https://wa.me/254717520268" target="_blank" class="whatsapp-btn hidden-mobile"
-                title="Chat on WhatsApp">
-                <i class="fab fa-whatsapp"></i>
-            </a>
-
-            <a href="admin.html" class="btn-login hidden-mobile"
-                id="admin-login-btn" title="Admin Login">
-                <i class="fas fa-sign-in-alt"></i> <span>Login</span>
-            </a>
-
-            <button class="mobile-menu-toggle hidden-desktop" aria-label="Toggle navigation menu">
-                <i class="fas fa-bars"></i>
-            </button>
-        </div>
+    <!-- Unified Application Header -->
+    <header class="app-header">
+      <div class="brand-section">
+        <div class="brand-logo">D</div>
+        <div class="brand-title">Duka <span style="font-weight:400;">Online</span></div>
+      </div>
+      <nav class="nav-tabs">
+        <button class="nav-btn active" data-role="buyer" onclick="switchRole('buyer')">
+          🛍️ Buyer Portal
+        </button>
+        <button class="nav-btn" data-role="seller" onclick="switchRole('seller')">
+          📈 Seller Dashboard
+        </button>
+        <button class="nav-btn" data-role="courier" onclick="switchRole('courier')">
+          🚚 Courier Portal
+        </button>
+      </nav>
     </header>
 
-    <!-- Main Search Toolbar -->
-    <div class="main-search-toolbar">
-        <div class="container flex items-center gap-4">
-            <!-- Department Label (Aligns with sidebar below) -->
-            <div class="dept-header-label hidden-mobile">
-                Shop By Department <i class="fas fa-chevron-down ml-2 text-sm"></i>
-            </div>
-
-            <!-- Search Widget -->
-            <div class="search-widget flex-1 flex items-center bg-white rounded-full pl-4 pr-1 py-1">
-                <input type="text" id="global-search" class="flex-1 outline-none text-gray-700"
-                    placeholder="Search for Products">
-
-                <div class="category-select-wrapper border-l border-gray-300 px-3 relative cursor-pointer">
-                    <select id="global-category"
-                        class="appearance-none bg-transparent pr-4 outline-none cursor-pointer text-sm font-medium text-gray-600">
-                        <option value="">All Categories</option>
-                        <option value="Refurbished Copiers">Refurbished Copiers</option>
-                        <option value="Drum units">Drum units</option>
-                        <option value="Kyocera B/W A4 Printers">Kyocera B/W A4 Printers</option>
-                        <option value="Toner Refills">Toner Refills</option>
-                        <option value="Toners">Toners</option>
-                        <option value="Accessories">Accessories</option>
-                        <option value="Brand New Copiers">Brand New Copiers</option>
-                        <option value="Laptops & Computers">Laptops & Computers</option>
-                        <option value="Spare Parts">Spare Parts</option>
-                        <option value="Office Printers">Office Printers</option>
-                    </select>
-                </div>
-
-                <button
-                    class="search-btn bg-gray-800 text-white w-10 h-10 rounded-full flex items-center justify-center hover:bg-gray-700 transition"
-                    onclick="App.triggerSearch()">
-                    <i class="fas fa-search"></i>
-                </button>
-            </div>
-
-            <!-- Toolbar Icons -->
-            <div class="toolbar-icons hidden-mobile flex items-center gap-4 text-xl text-gray-800">
-                <a href="#" class="hover:text-white transition" title="Refresh"><i class="fas fa-sync-alt"></i></a>
-                <a href="#" class="hover:text-white transition" title="Wishlist"><i class="far fa-heart"></i></a>
-                <button class="cart-toggle relative hover:text-white transition icon-btn" title="Cart">
-                    <i class="fas fa-shopping-cart"></i>
-                    <span class="badge hidden">0</span>
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Hero Section -->
-    <section id="home" class="hero-section">
-        <div class="container flex gap-8">
-            <!-- Sidebar Categories -->
-            <aside class="hero-sidebar hidden-mobile">
-                <!-- Header removed, now in toolbar -->
-                <ul class="sidebar-list">
-                    <li><a href="#shop" onclick="App.handleSearch('Refurbished Copiers')">Refurbished Copiers</a></li>
-                    <li><a href="#shop" onclick="App.handleSearch('Drum units')">Drum units</a></li>
-                    <li><a href="#shop" onclick="App.handleSearch('Kyocera B/W A4 Printers')">Kyocera B/W A4
-                            Printers</a></li>
-                    <li><a href="#shop" onclick="App.handleSearch('Toner Refills')">Toner Refills</a></li>
-                    <li><a href="#shop" onclick="App.handleSearch('Toners')">Toners</a></li>
-                    <li><a href="#shop" onclick="App.handleSearch('Accessories')">Accessories</a></li>
-                    <li><a href="#shop" onclick="App.handleSearch('Brand New Copiers')">Brand New Copiers</a></li>
-                    <li><a href="#shop" onclick="App.handleSearch('Laptops & Computers')">Laptops & Computers</a></li>
-                    <li><a href="#shop" onclick="App.handleSearch('Spare Parts')">Spare Parts</a></li>
-                    <li><a href="#shop" onclick="App.handleSearch('Office Printers')">Office Printers</a></li>
-                </ul>
-            </aside>
-
-            <!-- Main Hero Content -->
-            <div class="hero-content flex-1 flex items-center justify-between gap-12 relative">
-                <!-- Text Content -->
-                <div class="hero-text z-10 max-w-md">
-                    <h1>Elevate Your Office <br> Productivity</h1>
-                    <p>Premium Refurbished Copiers, Printers & Supplies at Unbeatable Prices.</p>
-                    <a href="#shop" class="btn btn-primary">Shop Now</a>
-                </div>
-
-                <!-- Hero Product Carousel -->
-                <div class="hero-carousel-wrapper hidden-mobile h-[400px] relative">
-                    <div
-                        class="hero-carousel relative w-full h-full rounded-2xl overflow-hidden shadow-2xl border-4 border-white/20 backdrop-blur-sm bg-transparent">
-
-                        <div
-                            class="hero-slide active absolute inset-0 transition-opacity duration-1000 ease-in-out opacity-100 bg-white">
-                            <img src="commercial-copier.png" class="w-full h-full object-contain">
-                        </div>
-
-
-
-                    </div>
-
-                    <!-- Indicators -->
-                    <div
-                        class="carousel-indicators absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2 z-20">
-                        <button class="w-3 h-3 rounded-full bg-white opacity-100 transition-all"
-                            onclick="App.goToHeroSlide(0)"></button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Categories Grid -->
-    <section class="categories-section section-padding">
-        <div class="container">
-            <div class="section-header text-center">
-                <h2>Our Collections</h2>
-                <p>Everything you need for a modern office.</p>
-            </div>
-            <div id="categories-grid" class="grid-categories">
-                <!-- Javascript will populate this -->
-            </div>
-            <div id="categories-pagination" class="pagination flex justify-center mt-8 gap-2"></div>
-        </div>
-    </section>
-
-    <!-- Featured Products -->
-    <section id="shop" class="products-section section-padding bg-white">
-        <div class="container">
-            <div class="flex justify-between items-center mb-8">
-                <h2>Latest Arrivals</h2>
-                <a href="#all-products" class="view-all-link">View All <i class="fas fa-arrow-right"></i></a>
-            </div>
-            <div id="products-container" class="grid-products">
-                <!-- Javascript will populate this -->
-                <div class="loading-state">Loading products...</div>
-            </div>
-            <div id="products-pagination" class="pagination flex justify-center mt-8 gap-2"></div>
-        </div>
-    </section>
-
-    <!-- Services Section -->
-    <section id="services" class="services-section section-padding">
-        <div class="container">
-            <div class="section-header text-center">
-                <h2>Our Premium Services</h2>
-                <p>Beyond sales, we ensure your office runs smoothly.</p>
-            </div>
-            <div class="grid-services">
-                <div class="service-card">
-                    <i class="fas fa-tools fa-3x" style="color:var(--accent-color)"></i>
-                    <h3>Expert Repairs</h3>
-                    <p>Qualified technicians for Kyocera, Ricoh, and HP devices. We fix it right the first time.</p>
-                </div>
-                <div class="service-card">
-                    <i class="fas fa-truck-fast fa-3x" style="color:var(--accent-color)"></i>
-                    <h3>Quick Delivery</h3>
-                    <p>Same-day delivery for toners and spare parts within Nairobi and environs.</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Our Brands Section -->
-    <section class="brands-section section-padding">
-        <div class="container">
-            <div class="section-header text-center">
-                <h2>Trusted Global Brands</h2>
-                <p>We stock premium office automation products from industry-leading manufacturers.</p>
-            </div>
-            <div class="brands-carousel-container">
-                <div class="brands-track">
-                    <div class="brand-item">
-                        <span class="brand-logo-text hp">HP</span>
-                    </div>
-                    <div class="brand-item">
-                        <span class="brand-logo-text ricoh">Ricoh</span>
-                    </div>
-                    <div class="brand-item">
-                        <span class="brand-logo-text bizhub">Bizhub</span>
-                    </div>
-                    <div class="brand-item">
-                        <span class="brand-logo-text dell">DELL</span>
-                    </div>
-                    <div class="brand-item">
-                        <span class="brand-logo-text kyocera">Kyocera</span>
-                    </div>
-                    <div class="brand-item">
-                        <span class="brand-logo-text canon">Canon</span>
-                    </div>
-                    <!-- Cloned items for seamless continuous marquee looping -->
-                    <div class="brand-item">
-                        <span class="brand-logo-text hp">HP</span>
-                    </div>
-                    <div class="brand-item">
-                        <span class="brand-logo-text ricoh">Ricoh</span>
-                    </div>
-                    <div class="brand-item">
-                        <span class="brand-logo-text bizhub">Bizhub</span>
-                    </div>
-                    <div class="brand-item">
-                        <span class="brand-logo-text dell">DELL</span>
-                    </div>
-                    <div class="brand-item">
-                        <span class="brand-logo-text kyocera">Kyocera</span>
-                    </div>
-                    <div class="brand-item">
-                        <span class="brand-logo-text canon">Canon</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Our Happy Customers Section -->
-    <section class="testimonials-section section-padding bg-slate">
-        <div class="container">
-            <div class="section-header text-center">
-                <h2>Our Happy Customers</h2>
-                <p>Here is what our clients have to say about our premium products and support.</p>
+    <!-- Main Views Controller -->
+    <main class="main-content">
+      
+      <!-- ========================================== -->
+      <!-- VIEW 1: BUYER PORTAL (Light Theme Layout)  -->
+      <!-- ========================================== -->
+      <section id="buyer-view" class="view-panel active">
+        <div class="buyer-grid">
+          
+          <!-- Welcome and Instructions Panel -->
+          <div class="buyer-instructions-wrapper">
+            <div class="auction-card" style="background: linear-gradient(135deg, #ffffff, #F0FFF4); border-left: 5px solid var(--primary-green);">
+              <span class="live-badge" style="background:var(--primary-green); margin-bottom: 1rem;">🔴 Direct Payout Point</span>
+              <h2 style="font-family: 'Outfit'; font-size: 1.8rem; color: var(--primary-green-dark); margin-bottom: 0.75rem;" id="streamer-name-tag">Secure Payout Point</h2>
+              <p style="font-size: 0.95rem; line-height: 1.6; margin-bottom: 1.25rem;">
+                You are paying your favorite social media live streamer peer-to-peer. Our app automatically routes your product payment to their registered **Pochi la Biashara** wallet and synchronizes shipping directly with the courier hub.
+              </p>
+              
+              <div style="background: rgba(255,255,255,0.7); padding: 1.25rem; border-radius: var(--border-radius-md); border: 1px dashed rgba(0, 176, 80, 0.25);">
+                <h4 style="font-family: 'Outfit'; color: var(--text-light-primary); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 6px;">
+                  📌 How to complete your purchase:
+                </h4>
+                <ol style="margin-left: 1.25rem; font-size: 0.85rem; display: flex; flex-direction: column; gap: 6px; color: var(--text-light-secondary);">
+                  <li>Watch the social media live stream of choice (TikTok, Facebook, Instagram, etc.).</li>
+                  <li>Click their shared payout link (which brings you directly to this secure form).</li>
+                  <li>Select their channel from the dropdown list, then enter the **Item Name** and **Agreed Price** announced on the live show.</li>
+                  <li>Choose your preferred courier collection depot and click Pay.</li>
+                  <li>Input your M-PESA PIN on the pop-up prompt to lock and secure your item!</li>
+                </ol>
+              </div>
             </div>
             
-            <div class="testimonials-carousel-wrapper">
-                <div class="testimonials-carousel">
-                    <!-- Slide 1 -->
-                    <div class="testimonial-slide active">
-                        <div class="testimonial-rating">
-                            <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i>
-                        </div>
-                        <p class="testimonial-text">Copier Maximum Solutions completely transformed our legal firm's workflow. The refurbished Kyocera TASKalfa printer we purchased is blazing fast, cost-effective, and their same-day toner delivery service is unmatched in Nairobi!</p>
-                        <div class="testimonial-author">
-                            <div class="author-avatar"><i class="fas fa-user-tie"></i></div>
-                            <div class="author-info">
-                                <h4>David Mutua</h4>
-                                <span>Managing Partner, Mutua & Partners Legal</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Slide 2 -->
-                    <div class="testimonial-slide">
-                        <div class="testimonial-rating">
-                            <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i>
-                        </div>
-                        <p class="testimonial-text">We got 5 high-performance HP laptops and a commercial printer for our startup showroom. Their customer service team went above and beyond to set everything up and configure our network. Superb support!</p>
-                        <div class="testimonial-author">
-                            <div class="author-avatar"><i class="fas fa-user-astronaut"></i></div>
-                            <div class="author-info">
-                                <h4>Sarah J. Omondi</h4>
-                                <span>Co-Founder, TechFlow Studios</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Slide 3 -->
-                    <div class="testimonial-slide">
-                        <div class="testimonial-rating">
-                            <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i>
-                        </div>
-                        <p class="testimonial-text">Outstanding service! We ordered spare parts for our Ricoh MP C3004. They arrived within 2 hours in Nairobi CBD. The technician they recommended was highly professional and fixed our machine in minutes.</p>
-                        <div class="testimonial-author">
-                            <div class="author-avatar"><i class="fas fa-user-gear"></i></div>
-                            <div class="author-info">
-                                <h4>John Ndwiga</h4>
-                                <span>Operations Manager, Grogan Spares Zone</span>
-                            </div>
-                        </div>
-                    </div>
+            <!-- Space 2: In-Feed Native Card Ad (Space 2 - Buyer Portal) -->
+            <div class="ad-native-card-spot">
+              <div class="ad-native-header">
+                <div class="ad-native-icon">🚚</div>
+                <div>
+                  <h4 class="ad-native-sponsor">Wells Fargo Safe Shipping</h4>
+                  <div style="font-size:0.7rem; color:var(--text-light-secondary);">Promoted Logistics</div>
                 </div>
-                
-                <!-- Controls -->
-                <button class="carousel-control prev" onclick="window.App.prevTestimonial()"><i class="fas fa-chevron-left"></i></button>
-                <button class="carousel-control next" onclick="window.App.nextTestimonial()"><i class="fas fa-chevron-right"></i></button>
-                
-                <!-- Dots -->
-                <div class="testimonials-indicators">
-                    <button class="active" onclick="window.App.goToTestimonial(0)"></button>
-                    <button onclick="window.App.goToTestimonial(1)"></button>
-                    <button onclick="window.App.goToTestimonial(2)"></button>
-                </div>
+              </div>
+              <p class="ad-native-body">Need secure, next-day transit to Eldoret, Kisumu or Nyeri? Wells Fargo handles your live-auction items safely with 100% loss insurance coverage. Book transit directly via Duka Online checkout!</p>
+              <button class="ad-native-action-btn" onclick="window.open('https://www.fargocourier.co.ke', '_blank')">Learn More</button>
             </div>
+          </div>
+          
+          <!-- Checkout Contact & Dispatch Information Form -->
+          <div class="checkout-form-card">
+            <!-- Mobile Blinking Badge -->
+            <span class="live-badge blinking-mobile-badge" style="background:var(--primary-green); margin-bottom: 1rem; display: none;">🔴 Direct Payout Point</span>
+            <h2 style="font-size: 1.5rem; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 8px;">
+              ⚡ Live Channel Pay Point
+            </h2>
+            
+            <form id="buyer-checkout-form" onsubmit="triggerBuyerCheckout(event)">
+              
+              <div class="form-group">
+                <label for="checkout-live-seller">Select TikTok / FB Seller Channel</label>
+                <select id="checkout-live-seller" class="form-select" onchange="handleCheckoutSellerChange()" required>
+                  <!-- Populate dynamically from ACTIVE_SELLERS -->
+                </select>
+              </div>
+              
+              <!-- Dynamic Items List -->
+              <div class="items-list-container" id="checkout-items-container">
+                <div class="item-row">
+                  <div>
+                    <label class="item-row-label">Item Name (e.g. Denim Jacket)</label>
+                    <input type="text" class="form-input buyer-item-name" placeholder="e.g. Denim Jacket" required>
+                  </div>
+                  <div>
+                    <label class="item-row-label">Agreed Price (KES)</label>
+                    <input type="number" class="form-input buyer-item-price" placeholder="e.g. 3200" oninput="updateCheckoutPricing()" required>
+                  </div>
+                  <button type="button" class="remove-item-btn" onclick="removeItemRow(this)" style="visibility: hidden;">✕</button>
+                </div>
+              </div>
+
+              <button type="button" id="add-item-btn" class="add-item-btn" onclick="addItemRow()">
+                ➕ Add Another Item
+              </button>
+              
+              <div class="form-group">
+                <label for="buyer-form-name">Your Full Name (As per M-PESA ID)</label>
+                <input type="text" id="buyer-form-name" class="form-input" placeholder="e.g. Michael Kiprop" required>
+              </div>
+              
+              <div class="form-group">
+                <label for="buyer-form-contact">Your M-PESA Phone Number</label>
+                <input type="tel" id="buyer-form-contact" class="form-input" placeholder="e.g. 0712345678" required>
+              </div>
+              
+              <div class="form-group">
+                <label for="checkout-collection-point">Select Courier Collection Point</label>
+                <select id="checkout-collection-point" class="form-select" onchange="updateCheckoutPricing()" required>
+                  <option value="" disabled selected>-- Choose Pickup Hub --</option>
+                  <!-- Populate dynamically from COLLECTION_POINTS -->
+                </select>
+              </div>
+
+              <!-- Payout and Shipping breakdown -->
+              <div class="pricing-breakdown">
+                <div class="breakdown-row">
+                  <span>Product Buyout Price:</span>
+                  <strong id="breakdown-prod-price">KES 0</strong>
+                </div>
+                <div class="breakdown-row">
+                  <span>Hub Delivery Fee:</span>
+                  <strong id="breakdown-delivery-fee">KES 0</strong>
+                </div>
+                <div class="breakdown-row total">
+                  <span>Total Amount (M-PESA):</span>
+                  <strong id="breakdown-total-price">KES 0</strong>
+                </div>
+              </div>
+
+              <button type="submit" class="cta-button">
+                📱 Pay & Secure Item Now
+              </button>
+              <p style="font-size: 0.75rem; text-align: center; margin-top: 0.75rem; color: var(--text-light-secondary);">
+                Immediate M-PESA STK Push will be triggered. Confirm with your PIN to hold package.
+              </p>
+            </form>
+          </div>
+          
         </div>
-    </section>
+      </section>
 
-    <!-- Contact Section -->
-    <section id="contact" class="contact-section section-padding bg-white">
-        <div class="container">
-            <div class="section-header text-center">
-                <h2>Get in Touch</h2>
-                <p>Visit our showroom or speak to a sales agent.</p>
-            </div>
-            <div class="contact-grid">
-                <div class="contact-info">
-                    <h3>Contact Information</h3>
-                    <div class="info-item">
-                        <i class="fas fa-map-marker-alt"></i>
-                        <span>CBD Showroom, Nairobi, Kenya</span>
-                    </div>
-                    <div class="info-item">
-                        <i class="fas fa-envelope"></i>
-                        <span>info@copiermaxsolutions.co.ke</span>
-                    </div>
-                    <div class="info-item">
-                        <i class="fas fa-phone"></i>
-                        <span>+254717520268 | +254101520268</span>
-                    </div>
-                    <div class="social-links">
-                        <a href="#" target="_blank" aria-label="Facebook"><i
-                                class="fab fa-facebook"></i></a>
-                        <a href="https://x.com/CopiermaxSln" target="_blank" aria-label="X"><i class="fab fa-x-twitter"></i></a>
-                        <a href="#" target="_blank" aria-label="Instagram"><i
-                                class="fab fa-instagram"></i></a>
-                        <a href="https://www.tiktok.com/@copiermaxsolution7?_r=1&_t=ZS-96g93ZkDUwi" target="_blank" aria-label="TikTok"><i
-                                class="fab fa-tiktok"></i></a>
-                        <a href="#" target="_blank" aria-label="YouTube"><i
-                                class="fab fa-youtube"></i></a>
-                        <a href="#" target="_blank" aria-label="LinkedIn"><i
-                                class="fab fa-linkedin"></i></a>
-                    </div>
-                </div>
-                <div class="contact-form-wrapper">
-                    <form onsubmit="event.preventDefault(); alert('Message sent! We will contact you shortly.');">
-                        <div class="form-group">
-                            <input type="text" placeholder="Your Name" required>
-                        </div>
-                        <div class="form-group">
-                            <input type="email" placeholder="Your Email" required>
-                        </div>
-                        <div class="form-group">
-                            <textarea rows="5" placeholder="How can we help you?" required></textarea>
-                        </div>
-                        <button type="submit" class="btn btn-primary">Send Message</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </section>
+      <!-- ========================================== -->
+      <!-- VIEW 2: SELLER DASHBOARD (Dark Theme Layout)-->
+      <!-- ========================================== -->
+      <section id="seller-view" class="view-panel">
+        <div class="dashboard-container">
 
-    <!-- Footer -->
-    <footer class="main-footer">
-        <div class="container">
-            <div class="footer-grid">
-                <div class="footer-col">
-                    <h3>Copier Maximum Solutions</h3>
-                    <p>Your trusted partner for office automation solutions.</p>
+          <!-- Seller Auth Gate (Lockscreen) -->
+          <div id="seller-auth-gate" class="auth-gate-panel">
+            <div class="auth-card">
+              <div class="auth-header">
+                <div class="auth-logo-circle">🔑</div>
+                <h2 style="font-family: Outfit; font-weight: 800; font-size: 1.5rem; color: #FFF; margin-top: 10px;">Merchant Sign In</h2>
+                <p style="color: var(--text-dark-secondary); font-size: 0.8rem; line-height: 1.4; margin-top: 5px;">Access is restricted to authorized sellers. Enter your registered Pochi phone number & PIN below.</p>
+              </div>
+              <form onsubmit="handleSellerLogin(event)" style="display:flex; flex-direction:column; gap: 15px; padding: 20px;">
+                <div class="form-group">
+                  <label style="color:#FFF; display:block; font-size:0.85rem; margin-bottom:5px; font-weight:600;">Registered Pochi Phone Number</label>
+                  <input type="tel" id="login-seller-phone" class="form-input" style="background:rgba(0,0,0,0.3); color:#FFF; border-color:var(--border-dark);" placeholder="e.g. 0722987654" required>
                 </div>
-                <div class="footer-col">
-                    <h4>Shop</h4>
-                    <ul>
-                        <li><a href="#">Copiers</a></li>
-                        <li><a href="#">Printers</a></li>
-                        <li><a href="#">Toners</a></li>
-                    </ul>
+                <div class="form-group">
+                  <label style="color:#FFF; display:block; font-size:0.85rem; margin-bottom:5px; font-weight:600;">4-Digit Account PIN</label>
+                  <input type="password" id="login-seller-pin" class="form-input" style="background:rgba(0,0,0,0.3); color:#FFF; border-color:var(--border-dark); text-align:center; letter-spacing:8px;" placeholder="••••" maxlength="4" required>
                 </div>
-                <div class="footer-col">
-                    <h4>Contact</h4>
-                    <p><i class="fas fa-phone"></i> +254717520268 | +254101520268</p>
-                    <p class="text-sm mt-1 text-gray-400">+254725770263 | +254702454615</p>
-                    <p><i class="fas fa-envelope"></i> info@copiermaxsolutions.co.ke</p>
-                    <p class="text-sm mt-1 text-gray-400">copiermaxsolution@gmail.com</p>
-                </div>
-            </div>
-            <div class="footer-bottom text-center">
-                <p>&copy; 2026 Copier Maximum Solutions. All rights reserved.</p>
-                <p style="margin-top: 0.5rem; color: #A8293B; font-size: 0.9rem;">
-                    Powered by <a href="https://www.techbrain.africa" target="_blank" style="color: #A8293B; text-decoration: none; font-weight: bold;">TechBrain</a>
+                <button type="submit" class="cta-button" style="background:var(--primary-green); font-size: 1rem; padding: 12px;">
+                  🔓 Access Control Panel
+                </button>
+                <p style="font-size:0.8rem; text-align:center; color:var(--text-dark-secondary); margin-top: 5px;">
+                  New merchant? <a href="#" onclick="openSellerSignupModal(); return false;" style="color:var(--primary-green); font-weight:600; text-decoration:none;">Register Shop Account</a>
                 </p>
+              </form>
             </div>
-        </div>
-    </footer>
+          </div>
 
-    <!-- Product Modal -->
-    <div id="product-modal" class="modal-overlay hidden">
-        <div class="modal-content">
-            <button class="modal-close-btn" onclick="App.closeProductModal()">&times;</button>
-            <div class="modal-body">
-                <div class="modal-gallery">
-                    <div class="main-img-wrapper">
-                        <img id="modal-main-img" src="" alt="Product">
-                    </div>
-                    <div id="modal-thumbnails" class="thumbnail-list"></div>
-                </div>
-                <div class="modal-info">
-                    <h2 id="modal-title"></h2>
-                    <div id="modal-price" class="product-price"></div>
-                    <div class="modal-desc-container">
-                        <h3>Specifications</h3>
-                        <div id="modal-description" class="modal-desc"></div>
-                    </div>
-                    <div class="modal-actions">
-                        <a id="modal-product-link" href="" target="_blank" class="btn btn-outline hidden"
-                            style="width: 100%; margin-bottom: 1rem; border-color: var(--accent-color); color: var(--accent-color); text-align: center; justify-content: center; display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none;">
-                            <i class="fas fa-external-link-alt"></i> View More Details
-                        </a>
-                        <button id="modal-add-cart-btn" class="btn btn-primary"
-                            style="width: 100%; margin-bottom: 1rem;">
-                            <i class="fas fa-shopping-cart" style="margin-right: 0.5rem;"></i> Add to Cart
-                        </button>
-                        <button class="btn btn-outline cart-toggle"
-                            style="width: 100%; background-color:#25D366; color:white; border:none;"
-                            onclick="App.checkoutWhatsApp()">
-                            <i class="fab fa-whatsapp" style="margin-right: 0.5rem;"></i> Checkout via WhatsApp
-                        </button>
-                    </div>
-                </div>
+          <div id="seller-dashboard-content" style="display:none;">
+            
+            <!-- Live sound alert banner -->
+            <div class="fomo-payout-banner" id="payout-banner">
+              <div class="fomo-payout-text">
+                🔔 <span id="payout-banner-text">QRE58KJS6F Matched! KES 3,200 product sale secured.</span>
+              </div>
+              <button style="background:transparent; border:none; color:white; font-weight:700; cursor:pointer;" onclick="document.getElementById('payout-banner').classList.remove('active')">&times;</button>
             </div>
+
+          <div class="dash-header">
+            <div>
+              <div style="display:flex; align-items:center; gap: 15px; flex-wrap:wrap; margin-bottom: 0.5rem;">
+                <h1 style="font-size: 2rem;">Seller Live Control Panel</h1>
+                <select id="seller-channel-selector" class="action-dropdown" style="font-size: 1.1rem; padding: 6px 15px; border-color: var(--primary-green); height: auto;" onchange="handleSellerChannelChange()">
+                  <!-- Populate dynamically -->
+                </select>
+                <button class="tool-btn" style="background:var(--primary-green); border-color:var(--primary-green); color:white; padding: 6px 12px; font-size: 0.9rem;" onclick="openSellerSignupModal()">➕ Register Shop</button>
+                <button class="tool-btn" style="background:transparent; border-color:var(--accent-red); color:var(--accent-red); padding: 6px 12px; font-size: 0.9rem;" onclick="handleSellerLogout()">🔓 Log Out</button>
+              </div>
+              <p style="color: var(--text-dark-secondary);">Real-time M-PESA message matching, platform split tracker, and courier manifest management.</p>
+            </div>
+            <span class="live-badge" style="background:#00B050;">Live Broadcast Connected</span>
+          </div>
+
+          <!-- Dynamic Payout Link Alert Card -->
+          <div id="seller-share-card" class="glass-panel" style="margin-bottom: 2rem; border-color: var(--primary-green); background: rgba(0, 176, 80, 0.05); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; padding: 15px 20px;">
+            <div>
+              <h4 style="color:#FFF; display:flex; align-items:center; gap:8px;">🔗 Your Live Broadcast Payout Link</h4>
+              <p style="color: var(--text-dark-secondary); font-size: 0.85rem; margin-top: 4px;">Copy and paste this link into your TikTok, Facebook, or Instagram live-stream bio!</p>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center; flex-grow: 1; max-width: 500px;">
+              <input type="text" id="seller-share-url-input" class="form-input" style="background: rgba(0, 0, 0, 0.3); border-color: var(--border-dark); color: #FFF; font-size: 0.9rem;" readonly>
+              <button class="tool-btn" style="background: var(--primary-green); border-color: var(--primary-green); color: white; padding: 12px 20px; font-size: 0.9rem; font-weight:700;" onclick="copySellerShareLink()">📋 Copy Link</button>
+            </div>
+          </div>
+
+          <!-- Statistics breakdown row -->
+          <div class="stats-grid">
+            <div class="stat-card">
+              <span class="stat-label">Total Product Sales (Seller Till)</span>
+              <div class="stat-value" id="seller-sales-value">KES 0</div>
+              <span class="stat-trend">🟢 100% Payout Disbursed Direct</span>
+            </div>
+            
+            <div class="stat-card shipping">
+              <span class="stat-label">Total Shipping Fee</span>
+              <div class="stat-value" id="seller-shipping-value">KES 0</div>
+              <span class="stat-trend" style="color: var(--secondary-orange);">🚚 Combined Logistics Payout</span>
+            </div>
+          </div>
+
+          <!-- Action and matching grid -->
+          <div class="dashboard-grid" style="margin-bottom: 2rem;">
+            
+            <!-- Left panel: MPESA Raw SMS Pasteur & Parser -->
+            <div class="glass-panel">
+              <div class="panel-title-bar">
+                <h3 class="panel-title">📩 Live M-PESA Confirmation SMS Feed</h3>
+              </div>
+              
+              <div class="parser-area">
+                <p style="color: var(--text-dark-secondary); font-size: 0.85rem; margin-bottom: 0.5rem;">
+                  Paste M-PESA SMS text received on your merchant phones below. The regex engine will instantly match the Buyer's details, merge them into a single record, and update the Courier manifests.
+                </p>
+                
+                <textarea id="sms-input-field" class="parser-textarea" placeholder="Paste incoming MPESA text here. Example: QRE58KJS6F Confirmed. Ksh3,450.00 sent to Pochi la Biashara GROGAN SPARES ZONE 0722987654 on 27/5/26 at 4:15 PM..."></textarea>
+                
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                  <button class="parser-action-btn" onclick="handleManualSMSParse()">
+                    ⚡ Process and Match SMS
+                  </button>
+                  <button class="tool-btn" style="border-color:var(--secondary-orange); color:var(--secondary-orange);" onclick="simulateLiveBuyerPurchase()">
+                    🎬 Simulate Live Buyer Order
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right panel: Printing Report controls & filters -->
+            <div class="glass-panel">
+              <div class="panel-title-bar">
+                <h3 class="panel-title">🖨️ Transaction Report Printer</h3>
+              </div>
+              
+              <p style="color: var(--text-dark-secondary); font-size: 0.85rem; margin-bottom: 1.5rem;">
+                Select a time duration filter to print optimized reports or export clean PDF logs for inventory reconciliations. Dark mode background is hidden automatically in prints to conserve ink.
+              </p>
+              
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <button class="tool-btn" onclick="triggerReportPrint('hourly')">🕒 Hourly Print</button>
+                <button class="tool-btn" onclick="triggerReportPrint('daily')">📅 Today's Report</button>
+                <button class="tool-btn" onclick="triggerReportPrint('weekly')">🗓️ Weekly Ledger</button>
+                <button class="tool-btn" onclick="triggerReportPrint('monthly')">📊 Monthly Analysis</button>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Central Live transaction ledger -->
+          <div class="glass-panel">
+            <div class="panel-title-bar">
+              <h3 class="panel-title">🧾 Seller Transactions</h3>
+            </div>
+            
+            <div class="table-container">
+              <table class="transaction-table">
+                <thead>
+                  <tr>
+                    <th>MPESA Code</th>
+                    <th>Buyer Info</th>
+                    <th>Item Details</th>
+                    <th>Total Paid</th>
+                    <th>Payment Details</th>
+                    <th>Delivery Hub</th>
+                    <th>SMS Match</th>
+                    <th>Fulfillment</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="seller-txn-table-body">
+                  <!-- Generated Dynamically via JS -->
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Space 2 (Seller View Ad Card Alternate) -->
+            <div class="ad-native-card-spot">
+              <div class="ad-native-header">
+                <div class="ad-native-icon" style="background:var(--secondary-orange)">💰</div>
+                <div>
+                  <h4 class="ad-native-sponsor" style="color:white;">MPESA Pochi la Biashara Premium Merchant Accounts</h4>
+                  <div style="font-size:0.7rem; color:var(--text-dark-secondary);">Promoted Business Finance</div>
+                </div>
+              </div>
+              <p class="ad-native-body">Separate your business earnings from personal funds. Safaricom Pochi la Biashara helps live streamers manage sales without mixing family money. Request an automated merchant upgrade directly from Safaricom portal today!</p>
+              <button class="ad-native-action-btn" style="background:var(--secondary-orange);" onclick="window.open('https://www.safaricom.co.ke', '_blank')">Apply Today</button>
+            </div>
+
+          </div>
+
+          </div>
         </div>
+      </section>
+
+      <!-- ========================================== -->
+      <!-- VIEW 3: COURIER PORTAL (Dark Theme Layout) -->
+      <!-- ========================================== -->
+      <section id="courier-view" class="view-panel">
+        <div class="dashboard-container">
+
+          <!-- Courier Auth Gate (Lockscreen) -->
+          <div id="courier-auth-gate" class="auth-gate-panel">
+            <div class="auth-card">
+              <div class="auth-header">
+                <div class="auth-logo-circle">🔑</div>
+                <h2 style="font-family: Outfit; font-weight: 800; font-size: 1.5rem; color: #FFF; margin-top: 10px;">Courier Sign In</h2>
+                <p style="color: var(--text-dark-secondary); font-size: 0.8rem; line-height: 1.4; margin-top: 5px;">Access is restricted to authorized couriers. Enter your registered Depot Pochi number & PIN below.</p>
+              </div>
+              <form onsubmit="handleCourierLogin(event)" style="display:flex; flex-direction:column; gap: 15px; padding: 20px;">
+                <div class="form-group">
+                  <label style="color:#FFF; display:block; font-size:0.85rem; margin-bottom:5px; font-weight:600;">Depot Pochi Phone Number</label>
+                  <input type="tel" id="login-courier-phone" class="form-input" style="background:rgba(0,0,0,0.3); color:#FFF; border-color:var(--border-dark);" placeholder="e.g. 0722000005" required>
+                </div>
+                <div class="form-group">
+                  <label style="color:#FFF; display:block; font-size:0.85rem; margin-bottom:5px; font-weight:600;">4-Digit Account PIN</label>
+                  <input type="password" id="login-courier-pin" class="form-input" style="background:rgba(0,0,0,0.3); color:#FFF; border-color:var(--border-dark); text-align:center; letter-spacing:8px;" placeholder="••••" maxlength="4" required>
+                </div>
+                <button type="submit" class="cta-button" style="background:var(--secondary-orange); font-size: 1rem; padding: 12px;">
+                  🔓 Access Courier Manifests
+                </button>
+                <p style="font-size:0.8rem; text-align:center; color:var(--text-dark-secondary); margin-top: 5px;">
+                  New courier? <a href="#" onclick="openCourierSignupModal(); return false;" style="color:var(--secondary-orange); font-weight:600; text-decoration:none;">Register Courier Depot</a>
+                </p>
+              </form>
+            </div>
+          </div>
+
+          <div id="courier-dashboard-content" style="display:none;">
+            
+            <div class="dash-header">
+              <div>
+                <div style="display:flex; align-items:center; gap: 15px; flex-wrap:wrap; margin-bottom: 0.5rem;">
+                  <h1 style="font-size: 2rem;">Courier Logistics Hub</h1>
+                  <button class="tool-btn" style="background:var(--secondary-orange); border-color:var(--secondary-orange); color:white; padding: 6px 12px; font-size: 0.9rem;" onclick="openCourierSignupModal()">➕ Register Depot</button>
+                  <button class="tool-btn" style="background:transparent; border-color:var(--accent-red); color:var(--accent-red); padding: 6px 12px; font-size: 0.9rem;" onclick="handleCourierLogout()">🔓 Log Out</button>
+                </div>
+                <p style="color: var(--text-dark-secondary);">Matches buyer shipping instructions with verified M-PESA confirmations to fulfill dispatches.</p>
+              </div>
+            </div>
+
+            <!-- Transaction Report Printer -->
+            <div class="glass-panel" style="margin-bottom: 2rem;">
+              <div class="panel-title-bar">
+                <h3 class="panel-title">🖨️ Transaction Report Printer</h3>
+              </div>
+              
+              <p style="color: var(--text-dark-secondary); font-size: 0.85rem; margin-bottom: 1.5rem;">
+                Select a time duration filter to print optimized reports or export clean PDF logs for inventory reconciliations. Dark mode background is hidden automatically in prints to conserve ink.
+              </p>
+              
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px;">
+                <button class="tool-btn" style="justify-content:center; padding: 12px;" onclick="triggerReportPrint('hourly')">🕒 Hourly Print</button>
+                <button class="tool-btn" style="justify-content:center; padding: 12px;" onclick="triggerReportPrint('daily')">📅 Today's Report</button>
+                <button class="tool-btn" style="justify-content:center; padding: 12px;" onclick="triggerReportPrint('weekly')">🗓️ Weekly Ledger</button>
+                <button class="tool-btn" style="justify-content:center; padding: 12px;" onclick="triggerReportPrint('monthly')">📊 Monthly Analysis</button>
+              </div>
+            </div>
+
+          <!-- Matched Delivery manifests table -->
+          <div class="glass-panel">
+            <div class="panel-title-bar">
+              <h3 class="panel-title">📦 Packages Manifest</h3>
+            </div>
+            
+            <div class="table-container">
+              <table class="transaction-table">
+                <thead>
+                  <tr>
+                    <th>MPESA ID</th>
+                    <th>Buyer & Contact</th>
+                    <th>Seller & Item Details</th>
+                    <th>Delivery Destination</th>
+                    <th>Courier Fee (Total)</th>
+                    <th>Earnings Splits</th>
+                    <th>Dispatch Date & Time</th>
+                    <th>Time Since Dispatch</th>
+                    <th>Current Status</th>
+                    <th>Fulfillment Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="courier-txn-table-body">
+                  <!-- Generated Dynamically via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Interactive Dialog Backdrop (Simulated M-PESA STK Prompt) -->
+  <div class="modal-backdrop" id="stk-push-modal">
+    <div class="stk-modal">
+      <div class="stk-header">
+        <div class="stk-logo-circle">M</div>
+        <h3 style="font-family: 'Outfit'; font-weight: 800; font-size: 1.3rem;">Lipa na M-PESA</h3>
+      </div>
+      
+      <div class="stk-body">
+        <p class="stk-prompt" id="stk-prompt-text">
+          Do you want to pay KES 0 to Duka Online?
+        </p>
+        <input type="password" id="stk-pin-field" class="stk-pin-input" placeholder="••••" maxlength="4" autocomplete="off">
+        <div class="stk-actions">
+          <button class="stk-btn cancel" onclick="cancelSimulatedPayment()">Cancel</button>
+          <button class="stk-btn confirm" onclick="confirmSimulatedPayment()">Confirm</button>
+        </div>
+      </div>
     </div>
+  </div>
 
-    <!-- Floating Cart Button for Mobile -->
-    <button class="mobile-cart-floating" onclick="window.App.checkoutWhatsApp()" title="View Cart & Checkout">
-        <i class="fas fa-shopping-cart"></i>
-        <span class="badge hidden">0</span>
-    </button>
+  <!-- Seller Sign-Up Modal (Mobile Bottom-Sheet and Tablet Modal) -->
+  <div class="modal-backdrop" id="seller-signup-modal">
+    <div class="signup-modal bottom-sheet">
+      <div class="signup-header">
+        <h3 style="font-family: 'Outfit'; font-weight: 800; font-size: 1.4rem;">🛍️ Register Seller Shop</h3>
+        <button class="modal-close-btn" onclick="closeSellerSignupModal()">&times;</button>
+      </div>
+      <form id="seller-signup-form" onsubmit="registerNewSeller(event)" class="signup-body">
+        <div class="form-group">
+          <label for="reg-seller-name">Shop Name</label>
+          <input type="text" id="reg-seller-name" class="form-input" placeholder="Shop Name, e.g. Ruiru Jeans Hub" required>
+        </div>
+        <div class="form-group">
+          <label for="reg-seller-short">Short Name (Identifier)</label>
+          <input type="text" id="reg-seller-short" class="form-input" placeholder="Short Name, e.g. Jeans" required>
+        </div>
+        <div class="form-group">
+          <label for="reg-seller-pochi">M-PESA Pochi Phone Number</label>
+          <input type="tel" id="reg-seller-pochi" class="form-input" placeholder="M-Pesa Pochi Number, e.g. 0724000000" pattern="^(07|01|254)\d{8}$" inputmode="tel" required>
+        </div>
+        <div class="form-group">
+          <label for="reg-seller-pin">Create 4-Digit Account PIN</label>
+          <input type="password" id="reg-seller-pin" class="form-input" placeholder="Create 4-Digit PIN, e.g. 1234" maxlength="4" pattern="^\d{4}$" inputmode="numeric" required>
+        </div>
+        <div class="form-group">
+          <label for="reg-seller-avatar">Select Icon Emoji</label>
+          <select id="reg-seller-avatar" class="form-select">
+            <option value="🛍️">🛍️ Shop Bag</option>
+            <option value="👗">👗 Fashion</option>
+            <option value="🛠️">🛠️ Spares</option>
+            <option value="💻">💻 Tech / Gadgets</option>
+            <option value="👟">👟 Shoes</option>
+            <option value="🍗">🍗 Food</option>
+          </select>
+        </div>
+        <button type="submit" class="cta-button" style="background:var(--primary-green); box-shadow: 0 4px 15px rgba(0, 176, 80, 0.3);">
+          ⚡ Register Shop Account
+        </button>
+      </form>
+    </div>
+  </div>
 
-    <!-- Scripts -->
-    <script src="config.js"></script> <!-- Config for URLs/Keys -->
-    <script type="module" src="app.js"></script>
+  <!-- Courier Sign-Up Modal (Mobile Bottom-Sheet and Tablet Modal) -->
+  <div class="modal-backdrop" id="courier-signup-modal">
+    <div class="signup-modal bottom-sheet">
+      <div class="signup-header">
+        <h3 style="font-family: 'Outfit'; font-weight: 800; font-size: 1.4rem;">🚚 Register Courier Depot</h3>
+        <button class="modal-close-btn" onclick="closeCourierSignupModal()">&times;</button>
+      </div>
+      <form id="courier-signup-form" onsubmit="registerNewCourier(event)" class="signup-body">
+        <div class="form-group">
+          <label for="reg-courier-name">Hub Name (Pickup Office)</label>
+          <input type="text" id="reg-courier-name" class="form-input" placeholder="Depot Hub Name, e.g. Garissa Main Depot" required>
+        </div>
+        <div class="form-group">
+          <label for="reg-courier-pochi">Courier Pochi Phone Number</label>
+          <input type="tel" id="reg-courier-pochi" class="form-input" placeholder="M-Pesa Pochi Number, e.g. 0724000000" pattern="^(07|01|254)\d{8}$" inputmode="tel" required>
+        </div>
+        <div class="form-group">
+          <label for="reg-courier-pin">Create 4-Digit Account PIN</label>
+          <input type="password" id="reg-courier-pin" class="form-input" placeholder="Create 4-Digit PIN, e.g. 1234" maxlength="4" pattern="^\d{4}$" inputmode="numeric" required>
+        </div>
+        <button type="submit" class="cta-button" style="background:var(--secondary-orange); box-shadow: 0 4px 15px rgba(255, 159, 28, 0.3);">
+          ⚡ Register Courier Hub
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast Notification System Feed -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- FIREBASE CLIENT SDKs LOAD (Dynamic Realtime Sync) -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+  <!-- Seeding JS Assets (Root Collapsed) -->
+  <script src="mock-data.js"></script>
+  <script src="mpesa-parser.js"></script>
+  <script src="app.js"></script>
 </body>
-
 </html>
