@@ -751,7 +751,8 @@ h1, h2, h3, h4, h5, h6 {
   content: 'Sponsored Ad';
   position: absolute;
   top: 6px;
-  left: 20px; /* Moved to top-left to avoid colliding with the button on desktop */
+  left: 50%;
+  transform: translateX(-50%); /* Centered at the top to prevent colliding with either the left PROMO badge or the right button */
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.15);
   color: var(--text-dark-secondary);
