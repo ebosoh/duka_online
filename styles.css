@@ -1718,9 +1718,16 @@ body:not([style*="background-color: var(--bg-light)"]) .modal-close-btn {
 .app-footer-section {
   background: var(--bg-dark-card);
   border-top: 1px solid var(--border-dark);
-  padding: 3rem 2rem 1.5rem 2rem;
+  padding: 3rem 1rem 1.5rem 1rem; /* Compact padding for mobile */
   color: var(--text-dark-primary);
   margin-top: auto;
+  transition: var(--transition-fast);
+}
+
+@media (min-width: 768px) {
+  .app-footer-section {
+    padding: 3rem 2rem 1.5rem 2rem; /* Expanded padding for desktop */
+  }
 }
 
 /* Ensure footer has deep contrast even if buyer view is active */
@@ -1776,6 +1783,8 @@ body:not([style*="background-color: var(--bg-light)"]) .modal-close-btn {
   text-decoration: none;
   font-size: 0.9rem;
   transition: var(--transition-fast);
+  padding: 6px 0; /* Touch friendly sizing */
+  display: inline-block;
 }
 
 .footer-links a:hover, .footer-contact a:hover {
@@ -1790,8 +1799,8 @@ body:not([style*="background-color: var(--bg-light)"]) .modal-close-btn {
 }
 
 .social-icon-btn {
-  width: 38px;
-  height: 38px;
+  width: 42px; /* Accessibly sized touch target */
+  height: 42px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--border-dark);
   color: var(--text-dark-secondary);
@@ -1849,4 +1858,34 @@ body:not([style*="background-color: var(--bg-light)"]) .modal-close-btn {
 .powered-by {
   font-weight: 700;
   color: #D2080C !important; /* Specific color required by user */
+}
+
+/* Mobile-Specific Layout Optimization (< 768px) */
+@media (max-width: 767px) {
+  .app-footer-section {
+    text-align: center; /* Balanced center layouts */
+  }
+  .footer-col h4::after {
+    left: 50%;
+    transform: translateX(-50%); /* Centered heading underlines */
+  }
+  .footer-col .brand-section {
+    justify-content: center;
+  }
+  .social-icons {
+    justify-content: center; /* Center social networks block */
+  }
+  .footer-links a, .footer-contact a {
+    display: block;
+    width: 100%;
+    text-align: center;
+    padding: 10px 0; /* Fully touch-accessible pad heights */
+  }
+  .footer-contact li {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 12px;
+  }
 }
