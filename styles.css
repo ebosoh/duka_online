@@ -1713,3 +1713,140 @@ body:not([style*="background-color: var(--bg-light)"]) .modal-close-btn {
     margin-top: 0;
   }
 }
+
+/* Premium Footer Section */
+.app-footer-section {
+  background: var(--bg-dark-card);
+  border-top: 1px solid var(--border-dark);
+  padding: 3rem 2rem 1.5rem 2rem;
+  color: var(--text-dark-primary);
+  margin-top: auto;
+}
+
+/* Ensure footer has deep contrast even if buyer view is active */
+#buyer-view ~ .app-footer-section {
+  background: #111827; /* Solid deep gray for premium buyer contrast */
+  border-top: 1px solid #1F2937;
+}
+
+.footer-grid {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2.5rem;
+  margin-bottom: 2.5rem;
+}
+
+@media (min-width: 768px) {
+  .footer-grid {
+    grid-template-columns: 1.5fr 1fr 1fr;
+  }
+}
+
+.footer-col h4 {
+  font-family: 'Outfit', sans-serif;
+  color: #FFF;
+  font-size: 1.15rem;
+  margin-bottom: 1.25rem;
+  font-weight: 700;
+  position: relative;
+}
+
+.footer-col h4::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -6px;
+  width: 30px;
+  height: 2px;
+  background: var(--primary-green);
+}
+
+.footer-links, .footer-contact {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.footer-links a, .footer-contact a {
+  color: var(--text-dark-secondary);
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: var(--transition-fast);
+}
+
+.footer-links a:hover, .footer-contact a:hover {
+  color: var(--primary-green);
+  padding-left: 4px;
+}
+
+.social-icons {
+  display: flex;
+  gap: 12px;
+  margin-top: 15px;
+}
+
+.social-icon-btn {
+  width: 38px;
+  height: 38px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-dark);
+  color: var(--text-dark-secondary);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition-fast);
+}
+
+.social-icon-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.social-icon-btn:hover {
+  background: var(--primary-green);
+  color: white;
+  border-color: var(--primary-green);
+  transform: translateY(-3px);
+  box-shadow: 0 4px 10px rgba(0, 176, 80, 0.3);
+}
+
+.footer-bottom {
+  max-width: 1400px;
+  margin: 0 auto;
+  border-top: 1px solid var(--border-dark);
+  padding-top: 1.5rem;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--text-dark-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+@media (min-width: 768px) {
+  .footer-bottom {
+    flex-direction: row;
+    justify-content: center;
+    gap: 16px;
+  }
+}
+
+.footer-bottom a {
+  color: var(--text-dark-secondary);
+  text-decoration: none;
+  transition: var(--transition-fast);
+}
+
+.footer-bottom a:hover {
+  color: var(--primary-green);
+}
+
+.powered-by {
+  font-weight: 700;
+  color: #D2080C !important; /* Specific color required by user */
+}
